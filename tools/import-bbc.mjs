@@ -14,7 +14,7 @@ const text = (value) => typeof value === 'string' ? value.replace(/<[^>]+>/g, ' 
 const findAll = (node, result = []) => {
   if (!node || typeof node !== 'object') return result;
   if (Array.isArray(node)) node.forEach((item) => findAll(item, result));
-  else { if ((node.pid || node.id)?.toString().match(/^e[a-z0-9]{7}$/i) && (node.title || node.display_title || node.subtitle)) result.push(node); Object.values(node).forEach((value) => findAll(value, result)); }
+  else { const candidate = node.pid || node.id || node.episode?.pid || node.programme?.pid; if (candidate?.toString().match(/^[a-z][a-z0-9]{7,}$/i) && (node.title || node.display_title || node.subtitle || node.episode?.title || node.programme?.title)) result.push({ ...node, pid: candidate }); Object.values(node).forEach((value) => findAll(value, result)); }
   return result;
 };
 const pick = (item, keys) => keys.map((key) => item?.[key]).find(Boolean);
@@ -32,11 +32,22 @@ const parseEpisode = (item) => {
 };
 const decode = (value) => text(value).replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
 const parseProfiles = (html) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]{0,1400}?)<\/a>/gi)].map((match) => { const block = match[2]; const image = block.match(/(?:src|data-src)="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)?.[1]; const name = decode(block.match(/(?:alt|title)="([^"]+)"/i)?.[1] || block.replace(/<[^>]+>/g, ' ')); return { name: name.replace(/\s+(Read more|Find out more)$/i, '').trim(), image: image?.startsWith('//') ? `https:${image}` : image }; }).filter((profile) => profile.name && profile.name.length < 80 && profile.image);
+const parseGuideHtml = (html) => [...html.matchAll(/href="\/programmes\/([a-z][a-z0-9]{7,})"[^>]*>([\s\S]{0,1200}?)<\/a>/gi)].map((match) => { const block = decode(match[2]); const episodeMatch = block.match(/(?:episode|ep)\s*(\d+)/i); const seriesMatch = block.match(/series\s*(\d+)/i); const titleMatch = block.match(/(?:Episode\s*\d+\s*:\s*)?([A-Z][^<]{3,100})/i); return { pid: match[1], title: text(titleMatch?.[1] || block).slice(0, 120), series: Number(seriesMatch?.[1] || 0), episode: Number(episodeMatch?.[1] || 0), date: block.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '', presenters: [], experts: [] }; }).filter((item) => item.pid !== 'b006nb9z' && item.title);
 
-let payload;
-for (const url of sourceUrls) {
-  try { const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0' } }); if (!response.ok) continue; const body = await response.text(); try { payload = JSON.parse(body); } catch { payload = body; } if (payload) break; } catch { /* Try the next BBC representation. */ }
+const rawPages = [];
+for (let page = 1; page <= 100; page += 1) {
+  let pageRecords = [];
+  for (const baseUrl of sourceUrls) {
+    const url = page === 1 ? baseUrl : `${baseUrl}?page=${page}`;
+    try { const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0' } }); if (!response.ok) continue; const body = await response.text(); const candidate = (() => { try { return JSON.parse(body); } catch { return body; } })(); const found = typeof candidate === 'string' ? parseGuideHtml(candidate) : findAll(candidate); if (found.length) { pageRecords = found; break; } } catch { /* Try the next BBC representation. */ }
+  }
+  const before = new Set(rawPages.map((item) => item.pid || item.id));
+  const newRecords = pageRecords.filter((item) => !before.has(item.pid || item.id));
+  if (!newRecords.length) { if (page > 1) break; continue; }
+  rawPages.push(...newRecords);
+  console.log(`BBC guide page ${page}: found ${newRecords.length} new records`);
 }
+const payload = rawPages;
 if (!payload) throw new Error('BBC source could not be reached. Try again later or check the network from the LXC.');
 
 const raw = Array.isArray(payload) ? payload : findAll(payload);
