@@ -1,8 +1,22 @@
-# Astro Starter Kit: Minimal
+# Bargain Hunt · Field Notes
+
+An Astro SSR archive for logging Bargain Hunt episodes, team purchases and auction results. PocketBase stores the data; the dashboard calculates archive totals and expert performance on each request.
+
+## Import the BBC episode guide
+
+The importer tries the BBC's structured programme representations first and falls back to the public guide page. It creates missing experts and episodes, and skips matching records so it can be run again safely.
 
 ```sh
-npm create astro@latest -- --template minimal
+POCKETBASE_URL=http://localhost:8090 npm run import:bbc
 ```
+
+The importer only fills episode metadata (series, episode number, title, date and presenter). Team prices, team experts and results are intentionally left for the field-notes form, because that information is not supplied by the BBC guide.
+
+For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://bargain_hunt_db:8090`.
+
+## Development
+
+`npm run dev` starts Astro on all interfaces at port 4321. For production, use `npm run build` followed by `node ./dist/server/entry.mjs`.
 
 > 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
 
