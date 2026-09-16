@@ -1,17 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Team from '../components/Team.astro';
-import PocketBase from 'pocketbase';
+import { loadArchive, money, teamTotal, pocketBaseUrl, fileUrl, pb } from '../lib/archive';
 
-const pocketBaseUrl = import.meta.env.POCKETBASE_URL || 'http://bargain_hunt_db:8090';
-const pb = new PocketBase(pocketBaseUrl);
 let experts: any[] = [], episodes: any[] = [], performances: any[] = [];
+let details: any[] = [];
 let errorMessage = '';
-const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
 const value = (v: unknown) => Number(v || 0);
-const teamTotal = (team: any, key: 'buy' | 'sell') => [1, 2, 3, 'bonus'].reduce((sum, n) => sum + value(team?.[`${n === 'bonus' ? 'bonus' : `item_${n}`}_${key}`]), 0);
 
-try { experts = await pb.collection('experts').getFullList({ sort: 'name' }); episodes = await pb.collection('episodes').getFullList({ sort: '-broadcast_date,-created', expand: 'presenter' }); performances = await pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
+try { ({ experts, episodes, performances, details } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
 
 if (Astro.request.method === 'POST') {
   try {
@@ -25,7 +22,7 @@ if (Astro.request.method === 'POST') {
 
 const totals = performances.reduce((acc, team) => { acc.paid += teamTotal(team, 'buy'); acc.sold += teamTotal(team, 'sell'); return acc; }, { paid: 0, sold: 0 });
 const profit = totals.sold - totals.paid;
-const winners = episodes.map((episode) => { const teams = performances.filter((team) => team.episode === episode.id || team.expand?.episode?.id === episode.id); const scored = teams.map((team) => ({ color: team.team_color, profit: teamTotal(team, 'sell') - teamTotal(team, 'buy') })).sort((a, b) => b.profit - a.profit); return { ...episode, winner: scored[0]?.color, winnerProfit: scored[0]?.profit || 0 }; });
+const winners = details.filter((episode) => episode.isLogged);
 const expertStats = experts.map((expert) => { const rows = performances.filter((team) => team.expert === expert.id || team.expand?.expert?.id === expert.id); return { name: expert.name, episodes: rows.length, profit: rows.reduce((sum, row) => sum + teamTotal(row, 'sell') - teamTotal(row, 'buy'), 0) }; }).filter((expert) => expert.episodes).sort((a, b) => b.profit - a.profit).slice(0, 5);
 const saved = Astro.url.searchParams.get('saved') === '1';
 const fileUrl = (record: any, filename: string) => filename ? `${pocketBaseUrl}/api/files/${record.collectionId}/${record.id}/${filename}` : '';
@@ -46,3 +43,16 @@ const episodeImageUrl = (episode: any) => fileUrl(episode, episode.image);
     </main><footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Private · local-first · made for the sofa</span></footer>
   </div>
 </Layout>
+<script>
+  document.querySelector('form.log-form')?.addEventListener('submit', () => {
+    for (const color of ['red', 'blue']) {
+      const mode = document.querySelector(`[name="${color}_result_mode"]`);
+      if (mode?.value === 'final') {
+        const finalValue = document.querySelector(`[name="${color}_final_profit"]`);
+        const buy = document.querySelector(`[name="${color}_item_1_buy"]`);
+        const sell = document.querySelector(`[name="${color}_item_1_sell"]`);
+        if (buy && sell && finalValue) { buy.value = '0'; sell.value = finalValue.value; }
+      }
+    }
+  });
+</script>

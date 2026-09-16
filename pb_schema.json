@@ -64,7 +64,9 @@
       { "id": "bool2016929172", "name": "bonus_accepted", "type": "bool", "required": false },
       { "id": "bool191229721", "name": "item_1_disqualified", "type": "bool", "required": false },
       { "id": "bool1996802754", "name": "item_2_disqualified", "type": "bool", "required": false },
-      { "id": "bool3926600628", "name": "item_3_disqualified", "type": "bool", "required": false }
+      { "id": "bool3926600628", "name": "item_3_disqualified", "type": "bool", "required": false },
+      { "id": "select_result_mode", "name": "result_mode", "type": "select", "values": ["items", "final"], "required": false },
+      { "id": "number_final_profit", "name": "final_profit", "type": "number", "required": false }
     ]
   }
 ]
