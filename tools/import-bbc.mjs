@@ -1,69 +1,37 @@
 import PocketBase from 'pocketbase';
 
-const sourceUrls = [
-  'https://www.bbc.co.uk/programmes/b006nb9z/episodes/guide.json',
-  'https://www.bbc.co.uk/programmes/b006nb9z/episodes/player.json',
-  'https://www.bbc.co.uk/programmes/b006nb9z/episodes.json',
-  'https://www.bbc.co.uk/programmes/b006nb9z/episodes/guide'
-];
 const pocketBaseUrl = process.env.POCKETBASE_URL || 'http://localhost:8090';
 const pb = new PocketBase(pocketBaseUrl);
+const guideUrl = 'https://www.bbc.co.uk/programmes/b006nb9z/episodes/guide';
 const profileUrls = ['https://www.bbc.co.uk/programmes/profiles/1DHTTlgtN56NkJjFT91dBX7/meet-the-presenters', 'https://www.bbc.co.uk/programmes/profiles/2rCG4qJkhKWc0qM38gy20hj/meet-the-experts'];
+const headers = { 'User-Agent': 'BargainHuntFieldNotes/1.0' };
+const clean = (value) => (value || '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+const fetchHtml = async (url) => { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`${response.status} ${url}`); return response.text(); };
 
-const text = (value) => typeof value === 'string' ? value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
-const findAll = (node, result = []) => {
-  if (!node || typeof node !== 'object') return result;
-  if (Array.isArray(node)) node.forEach((item) => findAll(item, result));
-  else { const candidate = node.pid || node.id || node.episode?.pid || node.programme?.pid; if (candidate?.toString().match(/^[a-z][a-z0-9]{7,}$/i) && (node.title || node.display_title || node.subtitle || node.episode?.title || node.programme?.title)) result.push({ ...node, pid: candidate }); Object.values(node).forEach((value) => findAll(value, result)); }
-  return result;
-};
-const pick = (item, keys) => keys.map((key) => item?.[key]).find(Boolean);
-const parseEpisode = (item) => {
-  const title = text(pick(item, ['display_subtitle', 'subtitle', 'title', 'display_title']));
-  const seriesText = text(pick(item, ['display_title', 'series_title', 'parent_title']));
-  const episodeMatch = `${title} ${seriesText}`.match(/(?:episode|ep)\s*(\d+)/i);
-  const seriesMatch = `${seriesText} ${title}`.match(/series\s*(\d+)/i);
-  const date = pick(item, ['first_broadcast_date', 'broadcast_date', 'date', 'first_broadcast']) || '';
-  const contributors = item.contributors || item.contributor || [];
-  const people = Array.isArray(contributors) ? contributors : Object.values(contributors);
-  const presenters = people.filter((person) => /presenter/i.test(person.role || person.type || '')).map((person) => text(person.name || person.title));
-  const experts = people.filter((person) => /expert/i.test(person.role || person.type || '')).map((person) => text(person.name || person.title));
-  return { pid: item.pid || item.id, title: title.replace(/^Episode\s*\d+\s*:\s*/i, '') || 'Untitled episode', series: Number(seriesMatch?.[1] || 0), episode: Number(episodeMatch?.[1] || 0), date: String(date).slice(0, 10), presenters, experts };
-};
-const decode = (value) => text(value).replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
-const parseProfiles = (html) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]{0,1400}?)<\/a>/gi)].map((match) => { const block = match[2]; const image = block.match(/(?:src|data-src)="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)?.[1]; const name = decode(block.match(/(?:alt|title)="([^"]+)"/i)?.[1] || block.replace(/<[^>]+>/g, ' ')); return { name: name.replace(/\s+(Read more|Find out more)$/i, '').trim(), image: image?.startsWith('//') ? `https:${image}` : image }; }).filter((profile) => profile.name && profile.name.length < 80 && profile.image);
-const parseGuideHtml = (html) => [...html.matchAll(/href="\/programmes\/([a-z][a-z0-9]{7,})"[^>]*>([\s\S]{0,1200}?)<\/a>/gi)].map((match) => { const block = decode(match[2]); const episodeMatch = block.match(/(?:episode|ep)\s*(\d+)/i); const seriesMatch = block.match(/series\s*(\d+)/i); const titleMatch = block.match(/(?:Episode\s*\d+\s*:\s*)?([A-Z][^<]{3,100})/i); return { pid: match[1], title: text(titleMatch?.[1] || block).slice(0, 120), series: Number(seriesMatch?.[1] || 0), episode: Number(episodeMatch?.[1] || 0), date: block.match(/\d{4}-\d{2}-\d{2}/)?.[0] || '', presenters: [], experts: [] }; }).filter((item) => item.pid !== 'b006nb9z' && item.title);
+const parseSeriesLinks = (html) => [...html.matchAll(/<a[^>]+href="(\/programmes\/[a-z0-9]+\/episodes\/guide)"[^>]*>([\s\S]{0,180}?)<\/a>/gi)].map((match) => ({ url: `https://www.bbc.co.uk${match[1]}`, label: clean(match[2]), series: Number(clean(match[2]).match(/series\s*(\d+)/i)?.[1] || 0) })).filter((series) => series.series);
+const parseEpisodes = (html, series) => [...html.matchAll(/<a[^>]+href="(\/programmes\/([a-z0-9]+))"[^>]*>([\s\S]{0,220}?)<\/a>/gi)].map((match) => { const block = html.slice(Math.max(0, match.index - 900), Math.min(html.length, match.index + 900)); const label = clean(match[3]); const title = label.replace(/^\d{1,2}\s+[A-Za-z]{3,9}(?:\s+\d{1,2}:\d{2})?:\s*/i, '').replace(/^Episode\s*\d+\s*:\s*/i, '').trim(); const episode = Number(title.match(/\s(\d{1,3})$/)?.[1] || 0); const image = block.match(/(?:src|data-src)="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)?.[1]; const synopsis = clean(block.match(/<p[^>]*>([\s\S]{20,400}?)<\/p>/i)?.[1] || ''); return { pid: match[2], url: `https://www.bbc.co.uk${match[1]}`, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image: image?.startsWith('//') ? `https:${image}` : image, presenters: [], experts: [] }; }).filter((episode) => episode.pid !== 'b006nb9z' && episode.title && !episode.url.endsWith('/episodes/guide'));
+const parseProfiles = (html) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]{0,1400}?)<\/a>/gi)].map((match) => { const block = match[2]; const image = block.match(/(?:src|data-src)="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)?.[1]; const name = clean(block.match(/(?:alt|title)="([^"]+)"/i)?.[1] || block); return { name: name.replace(/\s+(Read more|Find out more)$/i, '').trim(), image: image?.startsWith('//') ? `https:${image}` : image }; }).filter((profile) => profile.name && profile.name.length < 80 && profile.image);
 
-const rawPages = [];
-for (let page = 1; page <= 100; page += 1) {
-  let pageRecords = [];
-  for (const baseUrl of sourceUrls) {
-    const url = page === 1 ? baseUrl : `${baseUrl}?page=${page}`;
-    try { const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0' } }); if (!response.ok) continue; const body = await response.text(); const candidate = (() => { try { return JSON.parse(body); } catch { return body; } })(); const found = typeof candidate === 'string' ? parseGuideHtml(candidate) : findAll(candidate); if (found.length) { pageRecords = found; break; } } catch { /* Try the next BBC representation. */ }
-  }
-  const before = new Set(rawPages.map((item) => item.pid || item.id));
-  const newRecords = pageRecords.filter((item) => !before.has(item.pid || item.id));
-  if (!newRecords.length) { if (page > 1) break; continue; }
-  rawPages.push(...newRecords);
-  console.log(`BBC guide page ${page}: found ${newRecords.length} new records`);
-}
-const payload = rawPages;
-if (!payload) throw new Error('BBC source could not be reached. Try again later or check the network from the LXC.');
+const episodesByPid = new Map();
+for (let page = 1; page <= 4; page += 1) { const html = await fetchHtml(page === 1 ? guideUrl : `${guideUrl}?page=${page}`); for (const series of parseSeriesLinks(html)) { const seriesHtml = await fetchHtml(series.url); for (const episode of parseEpisodes(seriesHtml, series.series)) episodesByPid.set(episode.pid, episode); } console.log(`Guide page ${page}: ${episodesByPid.size} episode links collected`); }
+const episodes = [...episodesByPid.values()];
+if (!episodes.length) throw new Error('BBC guide returned no episode links. The page structure may have changed.');
 
-const raw = Array.isArray(payload) ? payload : findAll(payload);
-const episodes = [...new Map(raw.map(parseEpisode).filter((episode) => episode.pid).map((episode) => [episode.pid, episode])).values()];
-if (!episodes.length) throw new Error('BBC responded, but no episode records were recognised. Save a sample response and update the parser.');
-
+const schemaResponse = await fetch(`${pocketBaseUrl}/api/collections/episodes`, { headers });
+const schema = schemaResponse.ok ? await schemaResponse.json() : { fields: [] };
+const fieldNames = new Set((schema.fields || []).map((field) => field.name));
+const canStore = (name) => fieldNames.has(name);
 const existingExperts = await pb.collection('experts').getFullList();
 const existingEpisodes = await pb.collection('episodes').getFullList();
 const expertId = new Map(existingExperts.map((expert) => [expert.name.toLowerCase(), expert.id]));
 for (const episode of episodes) {
-  for (const name of [...episode.presenters, ...episode.experts].filter(Boolean)) {
-    if (!expertId.has(name.toLowerCase())) { const record = await pb.collection('experts').create({ name }); expertId.set(name.toLowerCase(), record.id); }
-  }
-  const duplicate = existingEpisodes.find((record) => record.series === episode.series && record.episod_number === episode.episode && record.title === episode.title);
-  if (duplicate) continue;
-  await pb.collection('episodes').create({ series: episode.series, episod_number: episode.episode, title: episode.title, broadcast_date: episode.date, presenter: expertId.get(episode.presenters[0]?.toLowerCase()) || '' });
+  const payload = { series: episode.series, episod_number: episode.episode, title: episode.title, presenter: '' };
+  if (canStore('bbc_pid')) payload.bbc_pid = episode.pid;
+  if (canStore('bbc_url')) payload.bbc_url = episode.url;
+  if (canStore('synopsis')) payload.synopsis = episode.synopsis;
+  const duplicate = existingEpisodes.find((record) => (canStore('bbc_pid') && record.bbc_pid === episode.pid) || (record.series === episode.series && record.episod_number === episode.episode && record.title === episode.title));
+  if (!duplicate) { const created = await pb.collection('episodes').create(payload); if (canStore('image') && episode.image) { try { const imageResponse = await fetch(episode.image); if (imageResponse.ok) { const blob = await imageResponse.blob(); await pb.collection('episodes').update(created.id, { image: new File([blob], `${episode.pid}.jpg`, { type: blob.type }) }); } } catch (error) { console.warn(`Could not save image for ${episode.pid}: ${error.message}`); } } }
 }
-console.log(`Imported ${episodes.length} BBC episodes; skipped existing records where matched.`);
-for (const url of profileUrls) { try { const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0' } }); if (!response.ok) continue; for (const profile of parseProfiles(await response.text())) { const id = expertId.get(profile.name.toLowerCase()); const current = existingExperts.find((expert) => expert.id === id); if (!id || current?.avatar) continue; const imageResponse = await fetch(profile.image); if (!imageResponse.ok) continue; const blob = await imageResponse.blob(); const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg'); await pb.collection('experts').update(id, { avatar: new File([blob], `${id}.${extension}`, { type: blob.type }) }); } } catch (error) { console.warn(`Could not import profile images from ${url}: ${error.message}`); } }
+for (const episode of episodes) for (const name of [...episode.presenters, ...episode.experts]) { const key = name.toLowerCase(); const isPresenter = episode.presenters.some((person) => person.toLowerCase() === key); const isExpert = episode.experts.some((person) => person.toLowerCase() === key); if (!expertId.has(key)) { const fields = { name }; if (canStore('is_presenter')) fields.is_presenter = isPresenter; if (canStore('is_expert')) fields.is_expert = isExpert; const record = await pb.collection('experts').create(fields); expertId.set(key, record.id); } }
+for (const url of profileUrls) { try { for (const profile of parseProfiles(await fetchHtml(url))) { const person = existingExperts.find((expert) => expert.name.toLowerCase() === profile.name.toLowerCase()); if (!person || person.avatar) continue; const imageResponse = await fetch(profile.image); if (imageResponse.ok) { const blob = await imageResponse.blob(); await pb.collection('experts').update(person.id, { avatar: new File([blob], `${person.id}.jpg`, { type: blob.type }) }); } } } catch (error) { console.warn(`Could not import profile images: ${error.message}`); } }
+console.log(`BBC sync complete: ${episodes.length} episode links processed.`);
