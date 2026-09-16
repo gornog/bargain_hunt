@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Team from '../components/Team.astro';
-import { loadArchive, money, teamTotal, pocketBaseUrl, fileUrl, pb } from '../lib/archive';
+import { loadArchive, money, teamTotal, teamProfit, fileUrl, pb } from '../lib/archive';
 
 let experts: any[] = [], episodes: any[] = [], performances: any[] = [];
 let details: any[] = [];
@@ -21,21 +21,22 @@ if (Astro.request.method === 'POST') {
 }
 
 const totals = performances.reduce((acc, team) => { acc.paid += teamTotal(team, 'buy'); acc.sold += teamTotal(team, 'sell'); return acc; }, { paid: 0, sold: 0 });
-const profit = totals.sold - totals.paid;
+const profit = performances.reduce((sum, team) => sum + teamProfit(team), 0);
 const winners = details.filter((episode) => episode.isLogged);
-const expertStats = experts.map((expert) => { const rows = performances.filter((team) => team.expert === expert.id || team.expand?.expert?.id === expert.id); return { name: expert.name, episodes: rows.length, profit: rows.reduce((sum, row) => sum + teamTotal(row, 'sell') - teamTotal(row, 'buy'), 0) }; }).filter((expert) => expert.episodes).sort((a, b) => b.profit - a.profit).slice(0, 5);
+const expertStats = experts.map((expert) => { const rows = performances.filter((team) => team.expert === expert.id || team.expand?.expert?.id === expert.id); return { name: expert.name, episodes: rows.length, profit: rows.reduce((sum, row) => sum + teamProfit(row), 0) }; }).filter((expert) => expert.episodes).sort((a, b) => b.profit - a.profit).slice(0, 5);
 const saved = Astro.url.searchParams.get('saved') === '1';
-const fileUrl = (record: any, filename: string) => filename ? `${pocketBaseUrl}/api/files/${record.collectionId}/${record.id}/${filename}` : '';
 const avatarUrl = (expert: any) => fileUrl(expert, expert.avatar);
 const episodeImageUrl = (episode: any) => fileUrl(episode, episode.image);
+const selectedEpisodeId = Astro.url.searchParams.get('episode');
+const selectedEpisode = details.find((episode) => episode.id === selectedEpisodeId);
 ---
 <Layout>
   <div class="shell">
-    <header class="topbar"><a class="brand" href="/" aria-label="Bargain Hunt home"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="#overview">Overview</a><a href="#log">Log an episode</a><a href="#experts">Experts</a></nav><span class="status"><i></i> Local archive</span></header>
+    <header class="topbar"><a class="brand" href="/" aria-label="Bargain Hunt home"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="/">Overview</a><a href="/episodes">Episodes</a><a href="/experts">Experts</a><a href="/stats">Stats</a></nav></header>
     <main>
       <section class="hero" id="overview"><div><p class="eyebrow">BBC · episode archive</p><h1>The stories behind<br /><i>the bargains.</i></h1><p class="intro">A calm, searchable notebook for every purchase, sale and expert call made on Bargain Hunt.</p><a class="hero-link" href="#log">Log the next episode <span>↘</span></a></div><div class="hero-note"><span class="stamp">ARCHIVE<br />{new Date().getFullYear()}</span><p>Track the margin.<br />Remember the finds.<br />Spot the patterns.</p></div></section>
       {saved && <div class="notice success">Episode saved to the archive. Nice work.</div>}{errorMessage && <div class="notice error">{errorMessage}</div>}
-      <section class="stats-grid" aria-label="Archive statistics"><div class="stat"><span>Episodes logged</span><strong>{episodes.length}</strong><small>across the archive</small></div><div class="stat"><span>Total paid</span><strong>{money.format(totals.paid)}</strong><small>on team purchases</small></div><div class="stat"><span>Total sold</span><strong>{money.format(totals.sold)}</strong><small>combined takings</small></div><div class="stat accent"><span>Net profit</span><strong>{money.format(profit)}</strong><small>buying → selling</small></div></section>
+      <section class="stats-grid" aria-label="Archive statistics"><div class="stat"><span>Episodes logged</span><strong>{winners.length}</strong><small>of {episodes.length} catalogue records</small></div><div class="stat"><span>Total paid</span><strong>{money.format(totals.paid)}</strong><small>on team purchases</small></div><div class="stat"><span>Total sold</span><strong>{money.format(totals.sold)}</strong><small>combined takings</small></div><div class="stat accent"><span>Net profit</span><strong>{money.format(profit)}</strong><small>buying → selling</small></div></section>
       <div class="section-heading"><div><p class="eyebrow">01 / recent records</p><h2>Latest episodes</h2></div><span class="muted">{episodes.length ? 'Your archive, at a glance' : 'No records yet — start below'}</span></div>
       <section class="episode-list">{winners.slice(0, 6).map((episode) => <article class="episode-row">{episode.image && <img class="episode-image" src={episodeImageUrl(episode)} alt="" />}<div class="episode-number">S{String(episode.series || 0).padStart(2, '0')}<br /><b>E{String(episode.episod_number || 0).padStart(2, '0')}</b></div><div class="episode-title"><h3>{episode.title || 'Untitled episode'}</h3><p>{episode.broadcast_date ? new Date(episode.broadcast_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not recorded'}{episode.expand?.presenter?.name ? ` · ${episode.expand.presenter.name}` : ''}</p>{episode.synopsis && <small>{episode.synopsis}</small>}</div><div class={`winner ${episode.winner?.toLowerCase() || ''}`}>{episode.winner ? `${episode.winner} team` : 'Awaiting scores'}<b>{episode.winner ? money.format(episode.winnerProfit) : '—'}</b></div></article>)}{!episodes.length && <div class="empty">Once you save an episode, its team result will appear here.</div>}</section>
       <section class="log-section" id="log"><div class="section-heading"><div><p class="eyebrow">02 / new record</p><h2>Log an episode</h2></div><span class="muted">Enter what you know — fill gaps later</span></div><form method="POST" class="log-form"><div class="form-block"><div class="block-label">Episode details <span>Required context</span></div><div class="fields four"><label>Series<input type="number" name="series" min="1" required placeholder="40" /></label><label>Episode<input type="number" name="episode_number" min="1" required placeholder="12" /></label><label class="wide">Title / location<input type="text" name="title" placeholder="e.g. Ardingly Antiques Fair" /></label><label>Date<input type="date" name="air_date" /></label><label class="wide">Presenter<input type="text" name="presenter" list="expert-list" placeholder="Start typing a name" /></label></div></div><div class="teams"><Team color="red" label="Red team" experts={experts} /><Team color="blue" label="Blue team" experts={experts} /></div><datalist id="expert-list">{experts.map((expert) => <option value={expert.name} />)}</datalist><div class="form-actions"><p>Calculations update in the archive after saving.</p><button type="submit">Save episode <span>↗</span></button></div></form></section>
@@ -49,10 +50,20 @@ const episodeImageUrl = (episode: any) => fileUrl(episode, episode.image);
       const mode = document.querySelector(`[name="${color}_result_mode"]`);
       if (mode?.value === 'final') {
         const finalValue = document.querySelector(`[name="${color}_final_profit"]`);
+        const name = document.querySelector(`[name="${color}_item_1_name"]`);
         const buy = document.querySelector(`[name="${color}_item_1_buy"]`);
         const sell = document.querySelector(`[name="${color}_item_1_sell"]`);
-        if (buy && sell && finalValue) { buy.value = '0'; sell.value = finalValue.value; }
+        if (name && buy && sell && finalValue) { name.value = 'Final result'; buy.value = '0'; sell.value = finalValue.value; }
       }
     }
   });
+</script>
+<script define:vars={{ selectedEpisode: selectedEpisode ? { series: selectedEpisode.series, episode: selectedEpisode.episod_number, title: selectedEpisode.title, date: selectedEpisode.broadcast_date, presenter: selectedEpisode.expand?.presenter?.name || '' } : null }}>
+  if (selectedEpisode) {
+    const fields = { series: selectedEpisode.series, episode_number: selectedEpisode.episode, title: selectedEpisode.title || '', air_date: selectedEpisode.date ? selectedEpisode.date.slice(0, 10) : '', presenter: selectedEpisode.presenter };
+    for (const [name, value] of Object.entries(fields)) {
+      const input = document.querySelector(`[name="${name}"]`);
+      if (input && value !== undefined && value !== null) input.value = value;
+    }
+  }
 </script>
