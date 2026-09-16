@@ -1,0 +1,138 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://bargain_hunt_db:8090');
+
+// Fetch experts for the dropdowns (Presenter + Team Experts)
+let experts = [];
+try {
+    experts = await pb.collection('experts').getFullList({ sort: 'name' });
+} catch (e) {
+    console.error("Could not fetch experts. Ensure API rules are public.");
+}
+---
+
+<Layout>
+  <main class="max-w-4xl mx-auto px-6 py-12">
+    
+    <!-- Minimalist Header -->
+    <header class="mb-10 border-b border-gray-200 pb-6 flex justify-between items-end">
+      <div>
+        <h1 class="text-3xl font-light tracking-tight text-gray-900">Bargain Hunt</h1>
+        <p class="text-sm text-gray-500 mt-1 tracking-wide uppercase">Comprehensive Episode Logger</p>
+      </div>
+    </header>
+
+    <form method="POST" class="space-y-12">
+      
+      <!-- 1. Episode Core Details -->
+      <section class="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-6">
+        <h2 class="text-lg font-medium text-gray-900 border-b border-gray-100 pb-4">1. Episode Information</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Series</label>
+            <input type="number" name="series" class="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:border-gray-900 transition-colors" required />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Episode #</label>
+            <input type="number" name="episode_number" class="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:border-gray-900 transition-colors" required />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Episode Title / Location</label>
+            <input type="text" name="title" placeholder="e.g. Ardingly 3" class="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:border-gray-900 transition-colors" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Air Date</label>
+            <input type="date" name="air_date" class="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:border-gray-900 transition-colors" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-2">Presenter</label>
+            <input type="text" list="expert-list" name="presenter" placeholder="Select presenter..." class="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:border-gray-900 transition-colors" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Team Performances (Red & Blue) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Red Team Section -->
+        <section class="bg-red-50/30 border border-red-100 rounded-xl p-8 space-y-6">
+          <div class="border-b border-red-200 pb-4">
+            <h3 class="text-xl font-medium text-red-900 tracking-tight">Red Team</h3>
+          </div>
+          
+          <div>
+            <label class="block text-[11px] font-semibold text-red-700 uppercase tracking-widest mb-2">Assigned Expert</label>
+            <input type="text" list="expert-list" name="red_expert" placeholder="Select expert..." class="w-full bg-white border border-red-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:border-red-500" />
+          </div>
+
+          <!-- Red Items Loop Simulation (Items 1-3 + Bonus) -->
+          <div class="space-y-4 pt-2">
+            <h4 class="text-xs font-bold text-red-800 uppercase tracking-wider">Team Items & Speculation</h4>
+            
+            <!-- Item Builder Component Block -->
+            {[1, 2, 3, 'Bonus'].map((num) => (
+              <div class="bg-white/80 border border-red-100 p-4 rounded-lg space-y-3">
+                <span class="text-xs font-medium text-red-700">Item {num}</span>
+                <input type="text" name={`red_item_${num}_name`} placeholder="Description" class="w-full bg-white border border-red-200 rounded px-3 py-2 text-xs" />
+                <div class="grid grid-cols-2 gap-3">
+                  <input type="number" step="0.01" name={`red_item_${num}_buy`} placeholder="Paid (£)" class="w-full bg-white border border-red-200 rounded px-3 py-2 text-xs" />
+                  <input type="number" step="0.01" name={`red_item_${num}_sell`} placeholder="Sold (£)" class="w-full bg-white border border-red-200 rounded px-3 py-2 text-xs" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <!-- Blue Team Section -->
+        <section class="bg-blue-50/30 border border-blue-100 rounded-xl p-8 space-y-6">
+          <div class="border-b border-blue-200 pb-4">
+            <h3 class="text-xl font-medium text-blue-900 tracking-tight">Blue Team</h3>
+          </div>
+          
+          <div>
+            <label class="block text-[11px] font-semibold text-blue-700 uppercase tracking-widest mb-2">Assigned Expert</label>
+            <input type="text" list="expert-list" name="blue_expert" placeholder="Select expert..." class="w-full bg-white border border-blue-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+
+          <!-- Blue Items Loop Simulation (Items 1-3 + Bonus) -->
+          <div class="space-y-4 pt-2">
+            <h4 class="text-xs font-bold text-blue-800 uppercase tracking-wider">Team Items & Speculation</h4>
+            
+            {[1, 2, 3, 'Bonus'].map((num) => (
+              <div class="bg-white/80 border border-blue-100 p-4 rounded-lg space-y-3">
+                <span class="text-xs font-medium text-blue-700">Item {num}</span>
+                <input type="text" name={`blue_item_${num}_name`} placeholder="Description" class="w-full bg-white border border-blue-200 rounded px-3 py-2 text-xs" />
+                <div class="grid grid-cols-2 gap-3">
+                  <input type="number" step="0.01" name={`blue_item_${num}_buy`} placeholder="Paid (£)" class="w-full bg-white border border-blue-200 rounded px-3 py-2 text-xs" />
+                  <input type="number" step="0.01" name={`blue_item_${num}_sell`} placeholder="Sold (£)" class="w-full bg-white border border-blue-200 rounded px-3 py-2 text-xs" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Shared Global Expert Datalist -->
+      <datalist id="expert-list">
+        {experts.map((expert) => (
+          <option value={expert.name} />
+        ))}
+      </datalist>
+
+      <!-- Submit Action -->
+      <div class="pt-4 pb-12">
+        <button type="submit" class="w-full bg-gray-900 text-white font-medium tracking-wide rounded-md px-6 py-4 hover:bg-gray-800 transition-colors shadow-sm">
+          Commit Episode Record
+        </button>
+      </div>
+
+    </form>
+  </main>
+</Layout>
