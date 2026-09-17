@@ -15,10 +15,15 @@ const absolute = (value) => value?.startsWith('//') ? `https:${value}` : value;
 
 const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)].map((match) => { const block = html.slice(Math.max(0, match.index - 1800), Math.min(html.length, match.index + 300)); return { url: `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`, label: clean(block), series: Number(clean(block).match(/series\s*(\d+)/i)?.[1] || 0) }; }).filter((series, index, all) => series.series && all.findIndex((item) => item.url === series.url) === index);
 
-const parseEpisodes = (html, series) => [...html.matchAll(/<div\s+class="programme\s+programme--[^" ]+\s+programme--episode[^" ]*"[^>]*data-pid="([a-z0-9]+)"[\s\S]*?(?=<div\s+class="programme\s+programme--|$)/gi)].map((match) => {
-  const block = match[0];
-  const pid = match[1];
-  const programmeLink = block.match(/href="(?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/[a-z0-9]+)"/i)?.[1];
+const parseEpisodes = (html, series) => {
+  const starts = [...html.matchAll(/<div\b[^>]*class=["'][^"']*\bprogramme--episode\b[^"']*["'][^>]*>/gi)];
+  return starts.map((match, index) => {
+  const start = match.index ?? 0;
+  const end = starts[index + 1]?.index ?? html.length;
+  const block = html.slice(start, end);
+  const pid = match[0].match(/\bdata-pid=["']([a-z0-9]+)["']/i)?.[1] || block.match(/\bdata-pid=["']([a-z0-9]+)["']/i)?.[1];
+  if (!pid) return null;
+  const programmeLink = block.match(/href=["'](?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/[a-z0-9]+)["']/i)?.[1];
   if (!programmeLink) return null;
   const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
@@ -27,7 +32,8 @@ const parseEpisodes = (html, series) => [...html.matchAll(/<div\s+class="program
   const synopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
   const watch = block.match(/href=["'](https?:\/\/www\.bbc\.co\.uk\/iplayer\/episode\/[a-z0-9]+)["']/i)?.[1] || '';
   return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image };
-}).filter((episode) => episode && episode.title);
+  }).filter((episode) => episode && episode.title);
+};
 
 const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
   const card = match[2];
