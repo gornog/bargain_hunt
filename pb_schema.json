@@ -16,6 +16,7 @@
       { "id": "relation3551881928", "name": "presenter", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
       { "id": "text_bbc_pid", "name": "bbc_pid", "type": "text", "required": false },
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
+      { "id": "url_watch", "name": "watch", "type": "url", "required": false },
       { "id": "text_synopsis", "name": "synopsis", "type": "text", "required": false },
       { "id": "file_episode_image", "name": "image", "type": "file", "maxSelect": 1, "required": false }
     ]

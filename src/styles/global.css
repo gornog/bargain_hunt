@@ -163,3 +163,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .combobox-options { position:absolute; z-index:20; top:100%; left:0; right:0; max-height:240px; overflow-y:auto; margin:0; padding:5px 0; list-style:none; background:#fff; color:#182233; border:1px solid var(--orange); box-shadow:0 8px 18px rgba(0,0,0,.35); }
 .combobox-options li { padding:10px 12px; cursor:pointer; font-size:14px; }
 .combobox-options li:hover,.combobox-options li:focus { background:var(--blue); color:#fff; outline:none; }
+.episode-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.watch-link { display:inline-block; padding:8px 12px; color:#ffd04a; border:1px solid #ffd04a; font-size:13px; }
+.watch-link:hover { background:#ffd04a; color:#111722; }
