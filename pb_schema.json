@@ -15,6 +15,8 @@
       { "id": "date1882574174", "name": "broadcast_date", "type": "date", "required": false },
       { "id": "date_watch_date", "name": "watch_date", "type": "date", "required": false },
       { "id": "relation3551881928", "name": "presenter", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
+      { "id": "relation_episode_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false },
+      { "id": "relation_episode_auctioneers", "name": "auctioneers", "type": "relation", "collectionId": "pbc_auctioneers", "maxSelect": 3, "required": false },
       { "id": "text_bbc_pid", "name": "bbc_pid", "type": "text", "required": false },
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
       { "id": "url_watch", "name": "watch", "type": "url", "required": false },
@@ -100,7 +102,8 @@
     "deleteRule": "",
     "fields": [
       { "id": "text_auctioneer_name", "name": "name", "type": "text", "required": true },
-      { "id": "relation_auctioneer_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false }
+      { "id": "relation_auctioneer_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 20, "required": false },
+      { "id": "relation_auctioneer_expert", "name": "expert", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false }
     ]
   },
   {
@@ -123,8 +126,7 @@
       { "id": "bool_item_big_spend", "name": "is_big_spend", "type": "bool", "required": false },
       { "id": "bool_item_disqualified", "name": "disqualified", "type": "bool", "required": false },
       { "id": "select_challenge_result", "name": "challenge_result", "type": "select", "values": ["not_applicable", "passed", "failed"], "required": false },
-      { "id": "relation_item_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false },
-      { "id": "relation_item_auctioneer", "name": "auctioneer", "type": "relation", "collectionId": "pbc_auctioneers", "maxSelect": 1, "required": false }
+      { "id": "file_item_image", "name": "image", "type": "file", "maxSelect": 1, "required": false }
     ]
   }
 ]

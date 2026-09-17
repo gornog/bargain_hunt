@@ -20,10 +20,10 @@ export const hasTeamData = (team: any) => Boolean((team?.result_mode === 'final'
 export const fileUrl = (record: any, filename: string) => filename ? `/api/pocketbase-file?collection=${encodeURIComponent(record.collectionId)}&record=${encodeURIComponent(record.id)}&file=${encodeURIComponent(filename)}` : '';
 
 export async function loadArchive() {
-  const optional = async (collection: string) => { try { return await pb.collection(collection).getFullList({ requestKey: null, expand: 'auction_house,auctioneer' }); } catch { return []; } };
+  const optional = async (collection: string, expand = '') => { try { return await pb.collection(collection).getFullList({ requestKey: null, ...(expand ? { expand } : {}), }); } catch { return []; } };
   const [experts, episodes, performances, items, auctionHouses, auctioneers] = await Promise.all([
     pb.collection('experts').getFullList({ sort: 'name' }),
-    pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter' }),
+    pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter,auction_house,auctioneers' }),
     pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }),
     optional('items'),
     optional('auction_houses'),
