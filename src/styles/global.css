@@ -237,6 +237,31 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .team-card .item-editor { border-color:#c9c4b7; }
 .team-card .item-options { border-color:#d5d0c4; }
 .team-card .team-total { border-color:#c9c4b7; }
+.flip-card { perspective:1000px; min-height:390px; }
+.flip-inner { position:relative; min-height:390px; transition:transform .55s ease; transform-style:preserve-3d; }
+.flip-card:hover .flip-inner,.flip-card:focus-within .flip-inner { transform:rotateY(180deg); }
+.flip-front,.flip-back { position:absolute; inset:0; backface-visibility:hidden; }
+.flip-front small { display:block; padding:12px 18px; color:#9da8b4; font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
+.flip-back { display:flex; flex-direction:column; justify-content:center; padding:24px; background:linear-gradient(145deg,var(--red),var(--blue)); color:#fff; transform:rotateY(180deg); }
+.flip-back h2 { color:#fff; }
+.flip-back > strong { margin-top:24px; font-size:38px; }
+.flip-back p { color:#fff; opacity:.8; }
+.flip-back dl { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:28px; }
+.flip-back dl div { padding-top:10px; border-top:1px solid rgba(255,255,255,.4); }
+.flip-back dt { font-size:9px; text-transform:uppercase; letter-spacing:.08em; }
+.flip-back dd { margin:5px 0 0; font-size:24px; font-weight:700; }
+.stats-extra { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px; }
+.stats-extra article { padding:22px; background:#f7f0df; border-top:5px solid var(--orange); color:#182233; }
+.stats-extra article:nth-child(2) { border-color:var(--blue); }
+.stats-extra article:nth-child(3) { border-color:#ffd04a; }
+.stats-extra span { display:block; color:#52647a; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+.stats-extra strong { display:block; margin:10px 0 5px; font-size:30px; }
+.stats-extra p { margin:0; color:#52647a; font-size:12px; }
+.stats-columns { display:grid; grid-template-columns:1fr 1fr; gap:28px; margin-top:38px; }
+.stat-list { border-top:1px solid rgba(244,241,232,.3); }
+.stat-list div { display:flex; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid rgba(244,241,232,.18); font-size:13px; }
+.stat-list span { color:#ffd04a; font-weight:700; }
+@media (max-width:700px) { .stats-extra,.stats-columns { grid-template-columns:1fr; } }
 @media (max-width:700px) { .episode-auction-details { grid-template-columns:1fr; grid-column:span 2; padding:16px; } }
 
 /* Episode context fields are part of the form, not a separate card. */
@@ -250,6 +275,22 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .add-auctioneer:hover { background:transparent; color:var(--red); }
 .episode-auction-details .entity-combobox input { margin-top:8px; }
 @media (max-width:700px) { .auctioneer-entry { grid-column:span 2; } .auctioneer-entry #auctioneer-list { display:block; } .auctioneer-entry .entity-combobox { margin-top:8px; } }
+.fields.four > label:has(.person-combobox) { grid-column:span 1; }
+.episode-auction-details > label { grid-column:span 1; }
+.auctioneer-entry { grid-column:span 1; }
+.team-card { background:#fff; color:#172238; }
+.team-card .team-board-body { background:#fff; color:#172238; }
+.team-card label,.team-card .field-caption { color:#263b57; }
+.team-card label input,.team-card .entity-combobox input { color:#172238; background:#fff; border-color:#718096; }
+.team-card .items-board-head { color:#172238; font-weight:800; border-color:#617086; }
+.team-card .item-editor { border-color:#c4ccd5; }
+.team-card .item-options { border-color:#d1d7de; }
+.team-card .item-options select { background:#fff; color:#172238; }
+.team-card .team-total { color:#172238; border-color:#617086; }
+.team-card .team-total.profit { color:#087f5b; }
+.team-card .team-total.loss { color:#d21f2b; }
+.add-auctioneer { padding:4px 0; color:#1672b8; background:transparent; }
+@media (max-width:700px) { .fields.four > label:has(.person-combobox) { grid-column:span 2; } .episode-auction-details > label,.auctioneer-entry { grid-column:span 2; } }
 .item-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-top:9px; padding:9px 0 2px; border-top:1px solid rgba(244,241,232,.14); }
 .item-options label { font-size:9px; }
 .item-options select { width:100%; margin-top:5px; padding:7px; font-size:11px; }
