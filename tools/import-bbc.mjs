@@ -35,11 +35,16 @@ const parseEpisodes = (html, series) => {
   }).filter((episode) => episode && episode.title);
 };
 
-const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
+const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href=["'](\/programmes\/profiles\/[^"'?]+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
+  const linkStart = match.index ?? 0;
+  const itemStart = html.lastIndexOf('<li', linkStart);
+  const itemEnd = html.indexOf('</li>', linkStart);
+  const item = html.slice(itemStart >= 0 ? itemStart : Math.max(0, linkStart - 3000), itemEnd >= 0 ? itemEnd : Math.min(html.length, linkStart + 3000));
   const card = match[2];
   const slug = match[1].split('/').filter(Boolean).pop() || '';
   const name = clean(card.match(/<(?:h1|h2|h3|h4)[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|h4)>/i)?.[1] || card).replace(/\s+(Read more|Find out more)$/i, '').trim() || slug.replace(/-/g, ' ');
-  return { name, profileUrl: `https://www.bbc.co.uk${match[1]}`, role };
+  const image = absolute(item.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1] || '');
+  return { name, profileUrl: `https://www.bbc.co.uk${match[1]}`, role, image };
 }).filter((profile, index, all) => profile.name && profile.name.length < 80 && key(profile.name) !== 'n/a' && all.findIndex((item) => item.profileUrl === profile.profileUrl) === index);
 const profileImage = (html, name) => {
   const nameIndex = html.toLowerCase().indexOf(name.toLowerCase());
@@ -84,13 +89,15 @@ for (const [role, url] of profileUrls) {
   const profiles = parseProfileLinks(await fetchHtml(url), role);
   console.log(`${role} profile page: ${profiles.length} named profiles found`);
   for (const profile of profiles) {
-    let image = '';
-    try {
-      image = profileImage(await fetchHtml(profile.profileUrl), profile.name);
-      console.log(`  ${profile.name}: ${image ? 'portrait found' : 'portrait not found'} (${profile.profileUrl})`);
-    } catch (error) {
-      console.warn(`  Could not read profile page for ${profile.name}: ${error.message}`);
+    let image = profile.image || '';
+    if (!image) {
+      try {
+        image = profileImage(await fetchHtml(profile.profileUrl), profile.name);
+      } catch (error) {
+        console.warn(`  Could not read profile page for ${profile.name}: ${error.message}`);
+      }
     }
+    console.log(`  ${profile.name}: ${image ? 'portrait found' : 'portrait not found'} (${profile.profileUrl})`);
     const person = profileMap.get(key(profile.name)) || { ...profile, is_presenter: false, is_expert: false, image: '' };
     person.is_presenter ||= role === 'presenter';
     person.is_expert ||= role === 'expert';
