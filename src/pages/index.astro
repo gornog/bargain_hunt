@@ -1,69 +1,26 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Team from '../components/Team.astro';
-import { loadArchive, money, teamTotal, teamProfit, fileUrl, pb } from '../lib/archive';
+import { loadArchive, money, teamProfit, fileUrl } from '../lib/archive';
 
-let experts: any[] = [], episodes: any[] = [], performances: any[] = [];
-let details: any[] = [];
-let errorMessage = '';
-const value = (v: unknown) => Number(v || 0);
-
-try { ({ experts, episodes, performances, details } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
-
-if (Astro.request.method === 'POST') {
-  try {
-    const form = await Astro.request.formData();
-    const findExpert = (name: string) => experts.find((expert) => expert.name.toLowerCase() === name.toLowerCase());
-    const episode = await pb.collection('episodes').create({ series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: findExpert(String(form.get('presenter') || '').trim())?.id || '' });
-    for (const color of ['red', 'blue']) { const record: Record<string, unknown> = { episode: episode.id, team_color: color === 'red' ? 'Red' : 'Blue', expert: findExpert(String(form.get(`${color}_expert`) || '').trim())?.id || '', bonus_accepted: form.get(`${color}_bonus_accepted`) === 'on' }; for (const item of [1, 2, 3]) { record[`item_${item}_name`] = String(form.get(`${color}_item_${item}_name`) || '').trim(); record[`item_${item}_buy`] = value(form.get(`${color}_item_${item}_buy`)); record[`item_${item}_sell`] = value(form.get(`${color}_item_${item}_sell`)); record[`item_${item}_disqualified`] = form.get(`${color}_item_${item}_disqualified`) === 'on'; } record.bonus_name = String(form.get(`${color}_bonus_name`) || '').trim(); record.bonus_buy = value(form.get(`${color}_bonus_buy`)); record.bonus_sell = value(form.get(`${color}_bonus_sell`)); await pb.collection('team_performances').create(record); }
-    return Astro.redirect('/?saved=1');
-  } catch (error) { errorMessage = 'The episode could not be saved. Check the PocketBase rules and field names.'; console.error(error); }
-}
-
-const totals = performances.reduce((acc, team) => { acc.paid += teamTotal(team, 'buy'); acc.sold += teamTotal(team, 'sell'); return acc; }, { paid: 0, sold: 0 });
-const profit = performances.reduce((sum, team) => sum + teamProfit(team), 0);
-const winners = details.filter((episode) => episode.isLogged);
-const expertStats = experts.map((expert) => { const rows = performances.filter((team) => team.expert === expert.id || team.expand?.expert?.id === expert.id); return { name: expert.name, episodes: rows.length, profit: rows.reduce((sum, row) => sum + teamProfit(row), 0) }; }).filter((expert) => expert.episodes).sort((a, b) => b.profit - a.profit).slice(0, 5);
-const saved = Astro.url.searchParams.get('saved') === '1';
-const avatarUrl = (expert: any) => fileUrl(expert, expert.avatar);
-const episodeImageUrl = (episode: any) => fileUrl(episode, episode.image);
-const selectedEpisodeId = Astro.url.searchParams.get('episode');
-const selectedEpisode = details.find((episode) => episode.id === selectedEpisodeId);
+let details: any[] = [], performances: any[] = [], experts: any[] = [], errorMessage = '';
+try { ({ details, performances, experts } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
+const logged = details.filter((episode) => episode.isLogged);
+const complete = details.filter((episode) => episode.isComplete);
+const totalProfit = performances.reduce((sum, team) => sum + teamProfit(team), 0);
+const recent = logged.slice(0, 3);
+const fileUrlFor = (record: any, filename: string) => fileUrl(record, filename);
 ---
 <Layout>
-  <div class="shell">
+  <div class="shell landing-shell">
     <header class="topbar"><a class="brand" href="/" aria-label="Bargain Hunt home"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="/">Overview</a><a href="/episodes">Episodes</a><a href="/experts">Experts</a><a href="/stats">Stats</a></nav></header>
     <main>
-      <section class="hero" id="overview"><div><p class="eyebrow">BBC · episode archive</p><h1>The stories behind<br /><i>the bargains.</i></h1><p class="intro">A calm, searchable notebook for every purchase, sale and expert call made on Bargain Hunt.</p><a class="hero-link" href="#log">Log the next episode <span>↘</span></a></div><div class="hero-note"><span class="stamp">ARCHIVE<br />{new Date().getFullYear()}</span><p>Track the margin.<br />Remember the finds.<br />Spot the patterns.</p></div></section>
-      {saved && <div class="notice success">Episode saved to the archive. Nice work.</div>}{errorMessage && <div class="notice error">{errorMessage}</div>}
-      <section class="stats-grid" aria-label="Archive statistics"><div class="stat"><span>Episodes logged</span><strong>{winners.length}</strong><small>of {episodes.length} catalogue records</small></div><div class="stat"><span>Total paid</span><strong>{money.format(totals.paid)}</strong><small>on team purchases</small></div><div class="stat"><span>Total sold</span><strong>{money.format(totals.sold)}</strong><small>combined takings</small></div><div class="stat accent"><span>Net profit</span><strong>{money.format(profit)}</strong><small>buying → selling</small></div></section>
-      <div class="section-heading"><div><p class="eyebrow">01 / recent records</p><h2>Latest episodes</h2></div><span class="muted">{episodes.length ? 'Your archive, at a glance' : 'No records yet — start below'}</span></div>
-      <section class="episode-list">{winners.slice(0, 6).map((episode) => <article class="episode-row">{episode.image && <img class="episode-image" src={episodeImageUrl(episode)} alt="" />}<div class="episode-number">S{String(episode.series || 0).padStart(2, '0')}<br /><b>E{String(episode.episod_number || 0).padStart(2, '0')}</b></div><div class="episode-title"><h3>{episode.title || 'Untitled episode'}</h3><p>{episode.broadcast_date ? new Date(episode.broadcast_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date not recorded'}{episode.expand?.presenter?.name ? ` · ${episode.expand.presenter.name}` : ''}</p>{episode.synopsis && <small>{episode.synopsis}</small>}</div><div class={`winner ${episode.winner?.toLowerCase() || ''}`}>{episode.winner ? `${episode.winner} team` : 'Awaiting scores'}<b>{episode.winner ? money.format(episode.winnerProfit) : '—'}</b></div></article>)}{!episodes.length && <div class="empty">Once you save an episode, its team result will appear here.</div>}</section>
-      <section class="log-section" id="log"><div class="section-heading"><div><p class="eyebrow">02 / new record</p><h2>Log an episode</h2></div><span class="muted">Enter what you know — fill gaps later</span></div><form method="POST" class="log-form"><div class="form-block"><div class="block-label">Episode details <span>Required context</span></div><div class="fields four"><label>Series<input type="number" name="series" min="1" required placeholder="40" /></label><label>Episode<input type="number" name="episode_number" min="1" required placeholder="12" /></label><label class="wide">Title / location<input type="text" name="title" placeholder="e.g. Ardingly Antiques Fair" /></label><label>Date<input type="date" name="air_date" /></label><label class="wide">Presenter<input type="text" name="presenter" list="expert-list" placeholder="Start typing a name" /></label></div></div><div class="teams"><Team color="red" label="Red team" experts={experts} /><Team color="blue" label="Blue team" experts={experts} /></div><datalist id="expert-list">{experts.map((expert) => <option value={expert.name} />)}</datalist><div class="form-actions"><p>Calculations update in the archive after saving.</p><button type="submit">Save episode <span>↗</span></button></div></form></section>
-      <section class="experts-section" id="experts"><div class="section-heading"><div><p class="eyebrow">03 / people & patterns</p><h2>Expert leaderboard</h2></div><span class="muted">Profit generated from logged sales</span></div><div class="leaderboard">{expertStats.map((expert, index) => { const record = experts.find((item) => item.name === expert.name); return <div class="leader"><span class="rank">0{index + 1}</span>{record?.avatar ? <img class="avatar" src={avatarUrl(record)} alt="" /> : <span class="avatar placeholder">{expert.name.slice(0, 1)}</span>}<span class="expert-name">{expert.name}<small>{expert.episodes} episode{expert.episodes === 1 ? '' : 's'}</small></span><span class="bar"><i style={`width: ${Math.max(8, Math.min(100, (expert.profit / Math.max(expertStats[0]?.profit || 1, 1)) * 100))}%`}></i></span><strong>{money.format(expert.profit)}</strong></div>})}{!expertStats.length && <div class="empty">Expert stats will appear as soon as an episode has a team assigned.</div>}</div></section>
-    </main><footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Private · local-first · made for the sofa</span></footer>
+      <section class="landing-hero"><div><p class="eyebrow">Bargain Hunt archive</p><h1>Every find has<br /><i>a story.</i></h1><p class="landing-lead">A private field notebook for the locations, people, prices and margins behind the programme.</p><a class="hero-link" href="/log">Rate an episode <span>↗</span></a></div><div class="landing-aside"><span class="aside-number">{details.length}</span><span>episodes<br />in the catalogue</span></div></section>
+      {errorMessage && <div class="notice error">{errorMessage}</div>}
+      <section class="landing-stats"><div><span>Logged</span><strong>{logged.length}</strong><small>episodes with results</small></div><div><span>Complete</span><strong>{complete.length}</strong><small>both teams recorded</small></div><div><span>Tracked profit</span><strong>{money.format(totalProfit)}</strong><small>from entered results</small></div></section>
+      <section class="section-heading landing-heading"><div><p class="eyebrow">Explore the archive</p><h2>Choose a trail.</h2></div><p class="muted">Each section has a job.</p></section>
+      <section class="route-grid" aria-label="Archive sections"><a class="route-card route-orange" href="/episodes"><span class="route-index">01</span><h3>Episode guide</h3><p>Browse every imported episode with its BBC image, synopsis and logging status.</p><span class="route-arrow">↗</span></a><a class="route-card route-blue" href="/log"><span class="route-index">02</span><h3>Episode rating</h3><p>Record team items, accepted bonuses, disqualified finds or a final profit figure.</p><span class="route-arrow">↗</span></a><a class="route-card route-dark" href="/experts"><span class="route-index">03</span><h3>Experts</h3><p>Meet the presenters and experts attached to the archive, with their portraits.</p><span class="route-arrow">↗</span></a><a class="route-card route-paper" href="/stats"><span class="route-index">04</span><h3>Statistics</h3><p>Compare Red and Blue, find the biggest wins and losses, and follow expert performance.</p><span class="route-arrow">↗</span></a></section>
+      <section class="landing-recent"><div class="section-heading"><div><p class="eyebrow">Latest records</p><h2>Recent ratings.</h2></div><a class="text-link" href="/episodes">View all episodes <span>↗</span></a></div><div class="recent-grid">{recent.map((episode) => <a href={`/log?episode=${episode.id}`} class="recent-card">{episode.image ? <img src={fileUrlFor(episode, episode.image)} alt="" /> : <div class="recent-placeholder">BH</div>}<div><span>S{String(episode.series || 0).padStart(2, '0')} E{String(episode.episod_number || 0).padStart(2, '0')}</span><h3>{episode.title || 'Untitled episode'}</h3><p>{episode.winner ? `${episode.winner} team · ${money.format(episode.winnerProfit)}` : 'In progress'}</p></div></a>)}{!recent.length && <p class="empty">No rated episodes yet. Start with the episode guide.</p>}</div></section>
+    </main>
+    <footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Private local archive</span></footer>
   </div>
 </Layout>
-<script>
-  document.querySelector('form.log-form')?.addEventListener('submit', () => {
-    for (const color of ['red', 'blue']) {
-      const mode = document.querySelector(`[name="${color}_result_mode"]`);
-      if (mode?.value === 'final') {
-        const finalValue = document.querySelector(`[name="${color}_final_profit"]`);
-        const name = document.querySelector(`[name="${color}_item_1_name"]`);
-        const buy = document.querySelector(`[name="${color}_item_1_buy"]`);
-        const sell = document.querySelector(`[name="${color}_item_1_sell"]`);
-        if (name && buy && sell && finalValue) { name.value = 'Final result'; buy.value = '0'; sell.value = finalValue.value; }
-      }
-    }
-  });
-</script>
-<script define:vars={{ selectedEpisode: selectedEpisode ? { series: selectedEpisode.series, episode: selectedEpisode.episod_number, title: selectedEpisode.title, date: selectedEpisode.broadcast_date, presenter: selectedEpisode.expand?.presenter?.name || '' } : null }}>
-  if (selectedEpisode) {
-    const fields = { series: selectedEpisode.series, episode_number: selectedEpisode.episode, title: selectedEpisode.title || '', air_date: selectedEpisode.date ? selectedEpisode.date.slice(0, 10) : '', presenter: selectedEpisode.presenter };
-    for (const [name, value] of Object.entries(fields)) {
-      const input = document.querySelector(`[name="${name}"]`);
-      if (input && value !== undefined && value !== null) input.value = value;
-    }
-  }
-</script>
