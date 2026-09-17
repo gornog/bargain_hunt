@@ -1,10 +1,12 @@
 ---
+import PersonCombobox from './PersonCombobox.astro';
 const { color, label, experts } = Astro.props;
 const tone = color === 'red' ? 'team-red' : 'team-blue';
+const eligibleExperts = experts.filter((expert: any) => expert.is_expert);
 ---
 <fieldset class={`team-card ${tone}`}>
   <legend><span class="team-dot"></span>{label}<small>Purchases & sales</small></legend>
-  <label>Assigned expert<select name={`${color}_expert`}><option value="">Not recorded</option>{experts.map((expert: any) => <option value={expert.name}>{expert.name}</option>)}</select></label>
+  <label>Assigned expert<PersonCombobox id={`${color}-expert`} name={`${color}_expert`} experts={eligibleExperts.length ? eligibleExperts : experts} placeholder="Start typing an expert" /></label>
   <label>Result entry<select name={`${color}_result_mode`}><option value="items">Item prices</option><option value="final">Final profit only</option></select></label>
   <label class="final-profit">Final profit<input type="number" step="0.01" name={`${color}_final_profit`} placeholder="£ 0" /></label>
   <div class="item-head"><span>Item</span><span>Paid</span><span>Sold</span></div>

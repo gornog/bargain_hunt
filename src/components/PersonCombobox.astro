@@ -1,0 +1,27 @@
+---
+const { id, name, value = '', experts = [], placeholder = 'Start typing a name' } = Astro.props;
+---
+<div class="person-combobox" data-combobox>
+  <input id={id} name={name} value={value} role="combobox" aria-autocomplete="list" aria-controls={`${id}-options`} aria-expanded="false" autocomplete="off" placeholder={placeholder} />
+  <button type="button" class="combobox-toggle" aria-label="Show names" tabindex="-1">⌄</button>
+  <ul id={`${id}-options`} class="combobox-options" role="listbox" hidden>
+    {experts.map((expert: any) => <li role="option" tabindex="-1" data-value={expert.name}>{expert.name}</li>)}
+  </ul>
+</div>
+<script>
+  document.querySelectorAll('[data-combobox]').forEach((root) => {
+    if (root.dataset.ready) return;
+    root.dataset.ready = 'true';
+    const input = root.querySelector('input');
+    const toggle = root.querySelector('.combobox-toggle');
+    const list = root.querySelector('[role="listbox"]');
+    const options = [...root.querySelectorAll('[role="option"]')];
+    const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+    const filter = () => { const term = input.value.trim().toLowerCase(); let visible = 0; options.forEach((option) => { const match = !term || option.dataset.value.toLowerCase().includes(term); option.hidden = !match; if (match) visible += 1; }); list.hidden = visible === 0; input.setAttribute('aria-expanded', String(visible > 0)); };
+    const open = () => { filter(); if (!list.hidden) input.setAttribute('aria-expanded', 'true'); };
+    options.forEach((option) => option.addEventListener('pointerdown', (event) => { event.preventDefault(); input.value = option.dataset.value; input.dispatchEvent(new Event('input', { bubbles: true })); close(); }));
+    input.addEventListener('focus', open); input.addEventListener('input', filter); toggle.addEventListener('click', () => list.hidden ? open() : close());
+    input.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); options.find((option) => !option.hidden)?.focus(); } });
+    document.addEventListener('click', (event) => { if (!root.contains(event.target)) close(); });
+  });
+</script>
