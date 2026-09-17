@@ -11,19 +11,39 @@ const selectedEpisode = details.find((episode) => episode.id === selectedEpisode
 const unnumbered = details.filter((episode) => !Number(episode.episod_number));
 const presenters = experts.filter((expert) => expert.is_presenter);
 const selectedWinner = selectedEpisode?.scored?.[0];
+const houseOptions = auctionHouses.map((house) => ({ label: house.name }));
+const auctioneerOptions = auctioneers.map((auctioneer) => ({ label: auctioneer.name, houseId: auctioneer.auction_house, houseName: auctioneer.expand?.auction_house?.map?.((house: any) => house.name).join(', ') || '' }));
+const selectedHouseId = selectedEpisode?.auction_house || '';
+const selectedAuctioneerIds = selectedEpisode?.auctioneers || [];
+const selectedAuctioneerNames = selectedAuctioneerIds.map((id: string) => auctioneers.find((auctioneer) => auctioneer.id === id)?.name || '').filter(Boolean);
+const prioritisedAuctioneerOptions = [...auctioneerOptions].sort((a, b) => Number(a.houseId === selectedHouseId) - Number(b.houseId === selectedHouseId)).reverse();
 
 if (Astro.request.method === 'POST') {
   try {
     const form = await Astro.request.formData();
-    const findExpert = (name: string) => experts.find((expert) => expert.name.toLowerCase() === name.toLowerCase());
-    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: findExpert(String(form.get('presenter') || '').trim())?.id || '', auction_house: String(form.get('auction_house') || ''), auctioneers: form.getAll('auctioneers').map(String) };
+    const findOrCreateExpert = async (name: string, role: 'presenter' | 'expert') => { if (!name) return null; const existing = experts.find((expert) => expert.name.toLowerCase() === name.toLowerCase()); if (existing) { const updates = role === 'presenter' && !existing.is_presenter ? { is_presenter: true } : role === 'expert' && !existing.is_expert ? { is_expert: true } : null; return updates ? await pb.collection('experts').update(existing.id, updates) : existing; } const created = await pb.collection('experts').create({ name, is_presenter: role === 'presenter', is_expert: role === 'expert' }); experts.push(created); return created; };
+    const houseName = String(form.get('auction_house_name') || '').trim();
+    const existingHouse = auctionHouses.find((house) => house.name.trim().toLowerCase() === houseName.toLowerCase());
+    const house = houseName ? existingHouse || await pb.collection('auction_houses').create({ name: houseName }) : null;
+    const auctioneerIds: string[] = [];
+    for (const rawName of form.getAll('auctioneer_name')) {
+      const name = String(rawName).trim();
+      if (!name) continue;
+      const existing = auctioneers.find((auctioneer) => auctioneer.name.trim().toLowerCase() === name.toLowerCase());
+      const auctioneer = existing || await pb.collection('auctioneers').create({ name, auction_house: house?.id ? [house.id] : [] });
+      if (house?.id && existing && !(existing.auction_house || []).includes(house.id)) await pb.collection('auctioneers').update(existing.id, { auction_house: [...(existing.auction_house || []), house.id] });
+      auctioneerIds.push(auctioneer.id);
+    }
+    const presenter = await findOrCreateExpert(String(form.get('presenter') || '').trim(), 'presenter');
+    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: presenter?.id || '', auction_house: house?.id || '', auctioneers: auctioneerIds };
     const catalogueId = String(form.get('catalogue_episode') || '').trim() || selectedEpisodeId || '';
     const matchingEpisode = details.find((candidate) => Number(candidate.series) === episodeData.series && Number(candidate.episod_number) === episodeData.episod_number && episodeData.episod_number > 0);
     const episode = catalogueId ? await pb.collection('episodes').update(catalogueId, episodeData) : matchingEpisode ? await pb.collection('episodes').update(matchingEpisode.id, episodeData) : await pb.collection('episodes').create(episodeData);
     const existingPerformances = await pb.collection('team_performances').getFullList({ filter: `episode = "${episode.id}"`, requestKey: null });
     for (const color of ['red', 'blue']) {
       const teamColor = color === 'red' ? 'Red' : 'Blue';
-      const record: Record<string, unknown> = { episode: episode.id, team_color: teamColor, expert: findExpert(String(form.get(`${color}_expert`) || '').trim())?.id || '', result_mode: String(form.get(`${color}_result_mode`) || 'items'), final_profit: value(form.get(`${color}_final_profit`)), bonus_accepted: form.get(`${color}_bonus_accepted`) === 'on' };
+      const assignedExpert = await findOrCreateExpert(String(form.get(`${color}_expert`) || '').trim(), 'expert');
+      const record: Record<string, unknown> = { episode: episode.id, team_color: teamColor, expert: assignedExpert?.id || '', result_mode: String(form.get(`${color}_result_mode`) || 'items'), final_profit: value(form.get(`${color}_final_profit`)), bonus_accepted: form.get(`${color}_bonus_accepted`) === 'on' };
       for (const item of [1, 2, 3]) { record[`item_${item}_name`] = String(form.get(`${color}_item_${item}_name`) || '').trim(); record[`item_${item}_buy`] = value(form.get(`${color}_item_${item}_buy`)); record[`item_${item}_sell`] = value(form.get(`${color}_item_${item}_sell`)); record[`item_${item}_disqualified`] = form.get(`${color}_item_${item}_disqualified`) === 'on'; }
       record.bonus_name = String(form.get(`${color}_item_4_name`) || '').trim(); record.bonus_buy = value(form.get(`${color}_item_4_buy`)); record.bonus_sell = value(form.get(`${color}_item_4_sell`));
       const existing = existingPerformances.find((performance) => performance.team_color === teamColor);
@@ -62,8 +82,14 @@ if (Astro.request.method === 'POST') {
     <footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Episode rating</span></footer>
   </div>
 </Layout>
-<script define:vars={{ catalogue: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, title: episode.title || '', date: episode.broadcast_date || '', presenter: episode.expand?.presenter?.name || '', image: episode.image ? fileUrl(episode, episode.image) : '' })), selectedId: selectedEpisodeId }}>
+<script define:vars={{ catalogue: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, title: episode.title || '', date: episode.broadcast_date || '', presenter: episode.expand?.presenter?.name || '', image: episode.image ? fileUrl(episode, episode.image) : '' })), selectedId: selectedEpisodeId, houseOptions, prioritisedAuctioneerOptions, selectedHouseId, selectedAuctioneerNames }}>
   const form = document.querySelector('form.log-form'); const seriesInput = document.querySelector('#series-input'); const episodeInput = document.querySelector('#episode-input'); const titleInput = document.querySelector('#title-input'); const dateInput = document.querySelector('#date-input'); const presenterInput = document.querySelector('#presenter-input'); const picker = document.querySelector('#catalogue-picker'); const select = document.querySelector('#catalogue-select'); const draftKey = `bargain-hunt-log:${selectedId || 'new'}`;
+  const oldAuctionFields = document.querySelectorAll('select[name="auction_house"], select[name="auctioneers"]'); oldAuctionFields.forEach((field) => { const label = field.closest('label'); if (label) label.hidden = true; });
+  const auctionDetails = document.createElement('div'); auctionDetails.className = 'episode-auction-details';
+  const makeInput = (labelText, id, name, placeholder, values, initial = '') => { const label = document.createElement('label'); label.textContent = labelText; const input = document.createElement('input'); input.id = id; input.name = name; input.value = initial; input.placeholder = placeholder; input.setAttribute('list', `${id}-options`); const list = document.createElement('datalist'); list.id = `${id}-options`; values.forEach((option) => { const entry = document.createElement('option'); entry.value = option.label || option.name; if (option.houseId) entry.dataset.house = option.houseId; list.append(entry); }); label.append(input, list); return label; };
+  auctionDetails.append(makeInput('Auction house', 'auction-house-input', 'auction_house_name', 'Type or choose a house', houseOptions, houseOptions.find((house) => house.label === (document.querySelector('select[name="auction_house"]')?.selectedOptions[0]?.textContent || ''))?.label || ''));
+  const auctioneerGroup = document.createElement('div'); auctioneerGroup.className = 'auctioneer-entry'; const caption = document.createElement('span'); caption.className = 'field-caption'; caption.textContent = 'Auctioneer(s)'; auctioneerGroup.append(caption); const list = document.createElement('div'); list.id = 'auctioneer-list'; for (let index = 0; index < 3; index += 1) list.append(makeInput('', `auctioneer-input-${index + 1}`, 'auctioneer_name', index ? 'Add another auctioneer' : 'Type or choose an auctioneer', prioritisedAuctioneerOptions, selectedAuctioneerNames[index] || '')); auctioneerGroup.append(list); const addButton = document.createElement('button'); addButton.type = 'button'; addButton.className = 'add-auctioneer'; addButton.textContent = '+ Add another auctioneer'; addButton.addEventListener('click', () => { const next = [...list.querySelectorAll('input')].find((input) => !input.value); if (next) { next.focus(); next.parentElement.hidden = false; } }); auctioneerGroup.append(addButton); auctionDetails.append(auctioneerGroup); document.querySelector('.fields.four')?.append(auctionDetails);
+  const houseInput = auctionDetails.querySelector('#auction-house-input'); houseInput?.addEventListener('input', () => { const house = houseOptions.find((option) => option.label.toLowerCase() === houseInput.value.trim().toLowerCase()); const datalist = document.querySelector('#auctioneer-input-1-options'); if (!datalist || !house) return; [...datalist.children].sort((a, b) => Number(b.dataset.house === house.id) - Number(a.dataset.house === house.id)).forEach((option) => datalist.append(option)); });
   const preview = (src, alt) => { let image = document.querySelector('#episode-preview'); if (!src) { image?.remove(); return; } if (!image) { image = document.createElement('img'); image.id = 'episode-preview'; image.className = 'log-preview'; document.querySelector('.form-block')?.append(image); } image.src = src; image.alt = alt || 'Episode image'; };
   const fill = (episode) => { if (!episode) return; titleInput.value = episode.title; dateInput.value = episode.date ? episode.date.slice(0, 10) : ''; presenterInput.value = episode.presenter; preview(episode.image, episode.title); document.querySelector('.log-synopsis')?.replaceChildren(episode.synopsis || ''); };
   const refreshMatch = () => { const s = Number(seriesInput.value); const n = Number(episodeInput.value); const exact = catalogue.find((episode) => Number(episode.series) === s && Number(episode.number) === n && n > 0); if (exact) { select.value = exact.id; picker.classList.add('is-hidden'); fill(exact); return; } const candidates = [...select.options].filter((option) => option.value && Number(option.dataset.series) === s); picker.classList.toggle('is-hidden', !s || !n || Boolean(exact) || !candidates.length); if (select.value && !candidates.some((option) => option.value === select.value)) select.value = ''; };

@@ -1,0 +1,8 @@
+---
+const { id, name, value = '', options = [], placeholder = 'Start typing', class: className = '' } = Astro.props;
+const listId = `${id}-options`;
+---
+<div class={`entity-combobox ${className}`}>
+  <input id={id} name={name} value={value} list={listId} autocomplete="off" placeholder={placeholder} />
+  <datalist id={listId}>{options.map((option: any) => <option value={option.label ?? option.name} data-house={option.houseId ?? ''}>{option.houseName ?? ''}</option>)}</datalist>
+</div>
