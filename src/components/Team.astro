@@ -1,16 +1,19 @@
 ---
 import PersonCombobox from './PersonCombobox.astro';
-const { color, label, experts } = Astro.props;
+const { color, label, experts, performance } = Astro.props;
 const tone = color === 'red' ? 'team-red' : 'team-blue';
 const eligibleExperts = experts.filter((expert: any) => expert.is_expert);
+const field = (name: string) => performance?.[name] ?? '';
+const checked = (name: string) => Boolean(performance?.[name]);
 ---
 <fieldset class={`team-card ${tone}`}>
   <legend><span class="team-dot"></span>{label}<small>Purchases & sales</small></legend>
-  <label>Assigned expert<PersonCombobox id={`${color}-expert`} name={`${color}_expert`} experts={eligibleExperts.length ? eligibleExperts : experts} placeholder="Start typing an expert" /></label>
-  <label>Result entry<select name={`${color}_result_mode`}><option value="items">Item prices</option><option value="final">Final profit only</option></select></label>
-  <label class="final-profit">Final profit<input type="number" step="0.01" name={`${color}_final_profit`} placeholder="£ 0" /></label>
+  <label>Assigned expert<PersonCombobox id={`${color}-expert`} name={`${color}_expert`} experts={eligibleExperts.length ? eligibleExperts : experts} value={performance?.expand?.expert?.name ?? ''} placeholder="Start typing an expert" /></label>
+  <label>Result entry<select name={`${color}_result_mode`}><option value="items" selected={field('result_mode') !== 'final'}>Item prices</option><option value="final" selected={field('result_mode') === 'final'}>Final profit only</option></select></label>
+  <label class="final-profit">Final profit<input type="number" step="0.01" name={`${color}_final_profit`} value={field('final_profit')} placeholder="£ 0" /></label>
   <div class="item-head"><span>Item</span><span>Paid</span><span>Sold</span></div>
-  {[1, 2, 3].map((item) => <><div class="item-row"><input type="text" name={`${color}_item_${item}_name`} aria-label={`${label} item ${item} name`} placeholder={`Item ${item} description`} /><input type="number" step="0.01" name={`${color}_item_${item}_buy`} aria-label={`${label} item ${item} paid`} placeholder="£ 0" /><input type="number" step="0.01" name={`${color}_item_${item}_sell`} aria-label={`${label} item ${item} sold`} placeholder="£ 0" /></div><label class="check item-check"><input type="checkbox" name={`${color}_item_${item}_disqualified`} /> Item {item} disqualified</label></>)}
-  <div class="item-row bonus-row"><input type="text" name={`${color}_bonus_name`} aria-label={`${label} bonus item name`} placeholder="Bonus item (optional)" /><input type="number" step="0.01" name={`${color}_bonus_buy`} aria-label={`${label} bonus paid`} placeholder="£ 0" /><input type="number" step="0.01" name={`${color}_bonus_sell`} aria-label={`${label} bonus sold`} placeholder="£ 0" /></div>
-  <label class="check"><input type="checkbox" name={`${color}_bonus_accepted`} /> Bonus accepted</label>
+  {[1, 2, 3].map((item) => <><div class="item-row"><input type="text" name={`${color}_item_${item}_name`} value={field(`item_${item}_name`)} aria-label={`${label} item ${item} name`} placeholder={`Item ${item} description`} /><input type="number" step="0.01" name={`${color}_item_${item}_buy`} value={field(`item_${item}_buy`)} aria-label={`${label} item ${item} paid`} placeholder="£ 0" /><input type="number" step="0.01" name={`${color}_item_${item}_sell`} value={field(`item_${item}_sell`)} aria-label={`${label} item ${item} sold`} placeholder="£ 0" /></div><label class="check item-check"><input type="checkbox" name={`${color}_item_${item}_disqualified`} checked={checked(`item_${item}_disqualified`)} /> Item {item} disqualified</label></>)}
+  <div class="item-row bonus-row"><input type="text" name={`${color}_bonus_name`} value={field('bonus_name')} aria-label={`${label} bonus item name`} placeholder="Bonus item (optional)" /><input type="number" step="0.01" name={`${color}_bonus_buy`} value={field('bonus_buy')} aria-label={`${label} bonus paid`} placeholder="£ 0" /><input type="number" step="0.01" name={`${color}_bonus_sell`} value={field('bonus_sell')} aria-label={`${label} bonus sold`} placeholder="£ 0" /></div>
+  <label class="check"><input type="checkbox" name={`${color}_bonus_accepted`} checked={checked('bonus_accepted')} /> Bonus accepted</label>
+  <output class="team-total" data-team-total={color}>Current result: £0.00</output>
 </fieldset>

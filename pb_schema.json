@@ -13,6 +13,7 @@
       { "id": "number733085568", "name": "episod_number", "type": "number", "required": false },
       { "id": "text724990059", "name": "title", "type": "text", "required": false },
       { "id": "date1882574174", "name": "broadcast_date", "type": "date", "required": false },
+      { "id": "date_watch_date", "name": "watch_date", "type": "date", "required": false },
       { "id": "relation3551881928", "name": "presenter", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
       { "id": "text_bbc_pid", "name": "bbc_pid", "type": "text", "required": false },
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
@@ -68,6 +69,62 @@
       { "id": "bool3926600628", "name": "item_3_disqualified", "type": "bool", "required": false },
       { "id": "select_result_mode", "name": "result_mode", "type": "select", "values": ["items", "final"], "required": false },
       { "id": "number_final_profit", "name": "final_profit", "type": "number", "required": false }
+      ,{ "id": "select_status", "name": "status", "type": "select", "values": ["draft", "complete"], "required": false }
+      ,{ "id": "bool_golden_gavel", "name": "golden_gavel", "type": "bool", "required": false }
+      ,{ "id": "number_challenge_penalty", "name": "challenge_penalty", "type": "number", "required": false }
+    ]
+  },
+  {
+    "id": "pbc_auction_houses",
+    "name": "auction_houses",
+    "type": "base",
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "fields": [
+      { "id": "text_auction_house_name", "name": "name", "type": "text", "required": true },
+      { "id": "text_auction_house_url", "name": "website", "type": "url", "required": false },
+      { "id": "text_auction_house_notes", "name": "notes", "type": "text", "required": false }
+    ]
+  },
+  {
+    "id": "pbc_auctioneers",
+    "name": "auctioneers",
+    "type": "base",
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "fields": [
+      { "id": "text_auctioneer_name", "name": "name", "type": "text", "required": true },
+      { "id": "relation_auctioneer_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false }
+    ]
+  },
+  {
+    "id": "pbc_items",
+    "name": "items",
+    "type": "base",
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": "",
+    "fields": [
+      { "id": "relation_item_performance", "name": "team_performance", "type": "relation", "collectionId": "pbc_343523064", "maxSelect": 1, "required": true },
+      { "id": "number_item_slot", "name": "slot", "type": "number", "required": true },
+      { "id": "text_item_name", "name": "name", "type": "text", "required": false },
+      { "id": "number_item_buy", "name": "buy_price", "type": "number", "required": false },
+      { "id": "number_item_sell", "name": "sell_price", "type": "number", "required": false },
+      { "id": "number_item_estimate", "name": "auctioneer_estimate", "type": "number", "required": false },
+      { "id": "bool_item_challenge", "name": "is_challenge", "type": "bool", "required": false },
+      { "id": "bool_item_big_spend", "name": "is_big_spend", "type": "bool", "required": false },
+      { "id": "bool_item_disqualified", "name": "disqualified", "type": "bool", "required": false },
+      { "id": "select_challenge_result", "name": "challenge_result", "type": "select", "values": ["not_applicable", "passed", "failed"], "required": false },
+      { "id": "relation_item_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false },
+      { "id": "relation_item_auctioneer", "name": "auctioneer", "type": "relation", "collectionId": "pbc_auctioneers", "maxSelect": 1, "required": false }
     ]
   }
 ]

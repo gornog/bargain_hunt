@@ -4,9 +4,13 @@ export const pocketBaseUrl = import.meta.env.POCKETBASE_URL || 'http://bargain_h
 export const pb = new PocketBase(pocketBaseUrl);
 export const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' });
 export const value = (v: unknown) => Number(v || 0);
-export const teamTotal = (team: any, key: 'buy' | 'sell') => [1, 2, 3, 'bonus'].reduce((sum, n) => sum + value(team?.[`${n === 'bonus' ? 'bonus' : `item_${n}`}_${key}`]), 0);
+export const teamTotal = (team: any, key: 'buy' | 'sell') => [1, 2, 3, 'bonus'].reduce((sum, n) => {
+  if (n === 'bonus' && !team?.bonus_accepted) return sum;
+  if (key === 'sell' && n !== 'bonus' && team?.[`item_${n}_disqualified`]) return sum;
+  return sum + value(team?.[`${n === 'bonus' ? 'bonus' : `item_${n}`}_${key}`]);
+}, 0);
 export const teamProfit = (team: any) => team?.result_mode === 'final' ? value(team.final_profit) : teamTotal(team, 'sell') - teamTotal(team, 'buy');
-export const hasTeamData = (team: any) => Boolean(team?.result_mode === 'final' || team?.expert || team?.bonus_accepted || [1, 2, 3].some((n) => team?.[`item_${n}_name`] || value(team?.[`item_${n}_buy`]) || value(team?.[`item_${n}_sell`])) || team?.bonus_name || value(team?.bonus_buy) || value(team?.bonus_sell));
+export const hasTeamData = (team: any) => Boolean((team?.result_mode === 'final' && (team?.final_profit !== null && team?.final_profit !== undefined && team?.final_profit !== '')) || team?.expert || team?.bonus_accepted || [1, 2, 3].some((n) => team?.[`item_${n}_name`] || value(team?.[`item_${n}_buy`]) || value(team?.[`item_${n}_sell`])) || team?.bonus_name || value(team?.bonus_buy) || value(team?.bonus_sell));
 export const fileUrl = (record: any, filename: string) => filename ? `/api/pocketbase-file?collection=${encodeURIComponent(record.collectionId)}&record=${encodeURIComponent(record.id)}&file=${encodeURIComponent(filename)}` : '';
 
 export async function loadArchive() {
