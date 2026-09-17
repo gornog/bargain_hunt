@@ -15,25 +15,33 @@ const absolute = (value) => value?.startsWith('//') ? `https:${value}` : value;
 
 const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)].map((match) => { const block = html.slice(Math.max(0, match.index - 1800), Math.min(html.length, match.index + 300)); return { url: `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`, label: clean(block), series: Number(clean(block).match(/series\s*(\d+)/i)?.[1] || 0) }; }).filter((series, index, all) => series.series && all.findIndex((item) => item.url === series.url) === index);
 
-const parseEpisodes = (html, series) => [...html.matchAll(/<a[^>]+href="(?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/([a-z0-9]+))"[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
-  const pid = match[2];
-  const programmeStart = html.lastIndexOf('<div class="programme', match.index);
-  const block = html.slice(programmeStart >= 0 ? programmeStart : Math.max(0, match.index - 1500), Math.min(html.length, (programmeStart >= 0 ? programmeStart : match.index) + 10000));
-  const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || match[3]);
+const parseEpisodes = (html, series) => [...html.matchAll(/<div\s+class="programme\s+programme--[^" ]+\s+programme--episode[^" ]*"[^>]*data-pid="([a-z0-9]+)"[\s\S]*?(?=<div\s+class="programme\s+programme--|$)/gi)].map((match) => {
+  const block = match[0];
+  const pid = match[1];
+  const programmeLink = block.match(/href="(?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/[a-z0-9]+)"/i)?.[1];
+  if (!programmeLink) return null;
+  const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
   const episode = Number(title.match(/\s(\d{1,3})$/)?.[1] || 0);
   const image = absolute(block.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
   const synopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
   const watch = block.match(/href=["'](https?:\/\/www\.bbc\.co\.uk\/iplayer\/episode\/[a-z0-9]+)["']/i)?.[1] || '';
-  return { pid, url: `https://www.bbc.co.uk${match[1]}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image };
-}).filter((episode) => episode.pid !== 'b006nb9z' && episode.title && !episode.url.endsWith('/episodes/guide'));
+  return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image };
+}).filter((episode) => episode && episode.title);
 
-const parseProfiles = (html, role) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
+const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href="(\/programmes\/profiles\/[^"?]+)"[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
   const card = match[2];
-  const image = absolute(card.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
-  const name = clean(card.match(/(?:alt|title)\s*=\s*["']([^"']+)["']/i)?.[1] || card).replace(/\s+(Read more|Find out more)$/i, '').trim();
-  return { name, image, role };
-}).filter((profile) => profile.name && profile.name.length < 80 && profile.image);
+  const slug = match[1].split('/').filter(Boolean).pop() || '';
+  const name = clean(card.match(/<(?:h1|h2|h3|h4)[^>]*>([\s\S]*?)<\/(?:h1|h2|h3|h4)>/i)?.[1] || card).replace(/\s+(Read more|Find out more)$/i, '').trim() || slug.replace(/-/g, ' ');
+  return { name, profileUrl: `https://www.bbc.co.uk${match[1]}`, role };
+}).filter((profile, index, all) => profile.name && profile.name.length < 80 && key(profile.name) !== 'n/a' && all.findIndex((item) => item.profileUrl === profile.profileUrl) === index);
+const profileImage = (html, name) => {
+  const nameIndex = html.toLowerCase().indexOf(name.toLowerCase());
+  if (nameIndex < 0) return '';
+  const local = html.slice(Math.max(0, nameIndex - 1000), Math.min(html.length, nameIndex + 7000));
+  return absolute(local.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
+};
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const episodesByPid = new Map();
 for (let page = 1; page <= 4; page += 1) {
@@ -66,7 +74,25 @@ for (const episode of episodes) {
 }
 
 const profileMap = new Map();
-for (const [role, url] of profileUrls) for (const profile of parseProfiles(await fetchHtml(url), role)) { const person = profileMap.get(key(profile.name)) || { ...profile, is_presenter: false, is_expert: false }; person.is_presenter ||= role === 'presenter'; person.is_expert ||= role === 'expert'; profileMap.set(key(profile.name), person); }
+for (const [role, url] of profileUrls) {
+  const profiles = parseProfileLinks(await fetchHtml(url), role);
+  console.log(`${role} profile page: ${profiles.length} named profiles found`);
+  for (const profile of profiles) {
+    let image = '';
+    try {
+      image = profileImage(await fetchHtml(profile.profileUrl), profile.name);
+      console.log(`  ${profile.name}: ${image ? 'portrait found' : 'portrait not found'} (${profile.profileUrl})`);
+    } catch (error) {
+      console.warn(`  Could not read profile page for ${profile.name}: ${error.message}`);
+    }
+    const person = profileMap.get(key(profile.name)) || { ...profile, is_presenter: false, is_expert: false, image: '' };
+    person.is_presenter ||= role === 'presenter';
+    person.is_expert ||= role === 'expert';
+    if (image) person.image = image;
+    profileMap.set(key(profile.name), person);
+    await pause(350);
+  }
+}
 const existingExperts = await pb.collection('experts').getFullList({ requestKey: null });
 const expertByName = new Map(existingExperts.map((expert) => [key(expert.name), expert]));
 let peopleCreated = 0; let peopleUpdated = 0; let portraits = 0;
