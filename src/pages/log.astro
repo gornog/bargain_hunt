@@ -1,18 +1,21 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Team from '../components/Team.astro';
-import { loadArchive, value, pb } from '../lib/archive';
+import { loadArchive, value, fileUrl, pb } from '../lib/archive';
 
 let experts: any[] = [], details: any[] = [], errorMessage = '';
 try { ({ experts, details } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
 const selectedEpisodeId = Astro.url.searchParams.get('episode');
 const selectedEpisode = details.find((episode) => episode.id === selectedEpisodeId);
+const unnumbered = details.filter((episode) => !Number(episode.episod_number));
 
 if (Astro.request.method === 'POST') {
   try {
     const form = await Astro.request.formData();
     const findExpert = (name: string) => experts.find((expert) => expert.name.toLowerCase() === name.toLowerCase());
-    const episode = await pb.collection('episodes').create({ series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: findExpert(String(form.get('presenter') || '').trim())?.id || '' });
+    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: findExpert(String(form.get('presenter') || '').trim())?.id || '' };
+    const catalogueId = String(form.get('catalogue_episode') || '').trim();
+    const episode = catalogueId ? await pb.collection('episodes').update(catalogueId, episodeData) : await pb.collection('episodes').create(episodeData);
     for (const color of ['red', 'blue']) {
       const record: Record<string, unknown> = { episode: episode.id, team_color: color === 'red' ? 'Red' : 'Blue', expert: findExpert(String(form.get(`${color}_expert`) || '').trim())?.id || '', bonus_accepted: form.get(`${color}_bonus_accepted`) === 'on' };
       for (const item of [1, 2, 3]) { record[`item_${item}_name`] = String(form.get(`${color}_item_${item}_name`) || '').trim(); record[`item_${item}_buy`] = value(form.get(`${color}_item_${item}_buy`)); record[`item_${item}_sell`] = value(form.get(`${color}_item_${item}_sell`)); record[`item_${item}_disqualified`] = form.get(`${color}_item_${item}_disqualified`) === 'on'; }
@@ -25,20 +28,21 @@ if (Astro.request.method === 'POST') {
 ---
 <Layout>
   <div class="shell">
-    <header class="topbar"><a class="brand" href="/"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="/">Overview</a><a href="/episodes">Episodes</a><a href="/experts">Experts</a><a href="/stats">Stats</a></nav></header>
+    <header class="topbar"><a class="brand" href="/"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="/">Overview</a><a href="/episodes">Episodes</a><a href="/log">Log</a><a href="/experts">Experts</a><a href="/stats">Stats</a></nav></header>
     <main class="directory log-page">
-      <div class="page-intro"><p class="eyebrow">episode rating</p><h1>Record the <i>result.</i></h1><p>Enter item prices when you have them, or use the final profit shortcut. An episode becomes in progress until both teams are represented.</p></div>
+      <div class="page-intro"><p class="eyebrow">auction room</p><h1>Enter the <i>result.</i></h1><p>Record the buys, the sales, the bonus buy and the final score. Item prices are welcome, but a final result is enough.</p></div>
       {errorMessage && <div class="notice error">{errorMessage}</div>}
-      <form method="POST" class="log-form"><div class="form-block"><div class="block-label">Episode details <span>Required context</span></div><div class="fields four"><label>Series<input type="number" name="series" min="1" required value={selectedEpisode?.series ?? ''} placeholder="40" /></label><label>Episode<input type="number" name="episode_number" min="1" required value={selectedEpisode?.episod_number ?? ''} placeholder="12" /></label><label class="wide">Title / location<input type="text" name="title" value={selectedEpisode?.title ?? ''} placeholder="e.g. Ardingly Antiques Fair" /></label><label>Date<input type="date" name="air_date" value={selectedEpisode?.broadcast_date?.slice(0, 10) ?? ''} /></label><label class="wide">Presenter<input type="text" name="presenter" list="expert-list" value={selectedEpisode?.expand?.presenter?.name ?? ''} placeholder="Start typing a name" /></label></div></div><div class="teams"><Team color="red" label="Red team" experts={experts} /><Team color="blue" label="Blue team" experts={experts} /></div><datalist id="expert-list">{experts.map((expert) => <option value={expert.name} />)}</datalist><div class="form-actions"><p>Use item prices or enter a final profit.</p><button type="submit">Save episode <span>↗</span></button></div></form>
+      <form method="POST" class="log-form"><div class="form-block"><div class="block-label">Episode details <span>Required context</span></div><div class="fields four"><label>Series<input id="series-input" type="number" name="series" min="1" required value={selectedEpisode?.series ?? ''} placeholder="40" /></label><label>Episode<input id="episode-input" type="number" name="episode_number" min="1" required value={selectedEpisode?.episod_number ?? ''} placeholder="12" /></label><label class="wide">Title / location<input id="title-input" type="text" name="title" value={selectedEpisode?.title ?? ''} placeholder="e.g. Ardingly Antiques Fair" /></label><label>Date<input id="date-input" type="date" name="air_date" value={selectedEpisode?.broadcast_date?.slice(0, 10) ?? ''} /></label><label class="wide">Presenter<select id="presenter-input" name="presenter"><option value="">Not recorded</option>{experts.map((expert) => <option value={expert.name} selected={selectedEpisode?.expand?.presenter?.name === expert.name}>{expert.name}</option>)}</select></label></div><label id="catalogue-picker" class="catalogue-picker is-hidden">BBC entry to associate<select id="catalogue-select" name="catalogue_episode"><option value="">Choose an unnumbered BBC entry</option>{unnumbered.map((episode) => <option value={episode.id} data-series={episode.series} data-title={episode.title || ''} data-image={episode.image ? fileUrl(episode, episode.image) : ''}>{`Series ${episode.series || 'n/a'}: ${episode.title || 'Untitled entry'}`}</option>)}</select><small>Use this when the BBC page supplied the series entry but not its episode number.</small></label>{selectedEpisode?.image && <img id="episode-preview" class="log-preview" src={fileUrl(selectedEpisode, selectedEpisode.image)} alt={selectedEpisode.title || 'Episode image'} />}</div><div class="teams"><Team color="red" label="Red team" experts={experts} /><Team color="blue" label="Blue team" experts={experts} /></div><div class="form-actions"><p>Use item prices or enter a final profit.</p><button type="submit">Save episode <span>↗</span></button></div></form>
     </main>
     <footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Episode rating</span></footer>
   </div>
 </Layout>
-<script>
-  document.querySelector('form.log-form')?.addEventListener('submit', () => {
-    for (const color of ['red', 'blue']) {
-      const mode = document.querySelector(`[name="${color}_result_mode"]`); const finalValue = document.querySelector(`[name="${color}_final_profit"]`); const name = document.querySelector(`[name="${color}_item_1_name"]`); const buy = document.querySelector(`[name="${color}_item_1_buy"]`); const sell = document.querySelector(`[name="${color}_item_1_sell"]`);
-      if (mode?.value === 'final' && name && buy && sell && finalValue) { name.value = 'Final result'; buy.value = '0'; sell.value = finalValue.value; }
-    }
-  });
+<script define:vars={{ catalogue: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, title: episode.title || '', date: episode.broadcast_date || '', presenter: episode.expand?.presenter?.name || '', image: episode.image ? fileUrl(episode, episode.image) : '' })), selectedId: selectedEpisodeId }}>
+  const seriesInput = document.querySelector('#series-input'); const episodeInput = document.querySelector('#episode-input'); const titleInput = document.querySelector('#title-input'); const dateInput = document.querySelector('#date-input'); const presenterInput = document.querySelector('#presenter-input'); const picker = document.querySelector('#catalogue-picker'); const select = document.querySelector('#catalogue-select');
+  const preview = (src, alt) => { let image = document.querySelector('#episode-preview'); if (!src) { image?.remove(); return; } if (!image) { image = document.createElement('img'); image.id = 'episode-preview'; image.className = 'log-preview'; document.querySelector('.form-block')?.append(image); } image.src = src; image.alt = alt || 'Episode image'; };
+  const fill = (episode) => { if (!episode) return; titleInput.value = episode.title; dateInput.value = episode.date ? episode.date.slice(0, 10) : ''; presenterInput.value = episode.presenter; preview(episode.image, episode.title); };
+  const refreshMatch = () => { const s = Number(seriesInput.value); const n = Number(episodeInput.value); const exact = catalogue.find((episode) => Number(episode.series) === s && Number(episode.number) === n && n > 0); if (exact) { select.value = exact.id; picker.classList.add('is-hidden'); fill(exact); return; } const candidates = [...select.options].filter((option) => option.value && Number(option.dataset.series) === s); picker.classList.toggle('is-hidden', !s || !n || Boolean(exact) || !candidates.length); if (select.value && !candidates.some((option) => option.value === select.value)) select.value = ''; };
+  seriesInput?.addEventListener('input', refreshMatch); episodeInput?.addEventListener('input', refreshMatch); select?.addEventListener('change', () => { const selected = catalogue.find((episode) => episode.id === select.value); if (selected) fill(selected); });
+  if (selectedId) refreshMatch();
+  document.querySelector('form.log-form')?.addEventListener('submit', () => { for (const color of ['red', 'blue']) { const mode = document.querySelector(`[name="${color}_result_mode"]`); const finalValue = document.querySelector(`[name="${color}_final_profit"]`); const name = document.querySelector(`[name="${color}_item_1_name"]`); const buy = document.querySelector(`[name="${color}_item_1_buy"]`); const sell = document.querySelector(`[name="${color}_item_1_sell"]`); if (mode?.value === 'final' && name && buy && sell && finalValue) { name.value = 'Final result'; buy.value = '0'; sell.value = finalValue.value; } } });
 </script>

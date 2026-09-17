@@ -54,6 +54,12 @@
 .episode-image { width:82px; height:54px; object-fit:cover; grid-column:1; }
 .episode-row:has(.episode-image) { grid-template-columns:82px 76px 1fr 150px; gap:14px; }
 @media (max-width:700px) { .episode-row:has(.episode-image) { grid-template-columns:55px 1fr 85px; gap:8px; } .episode-row:has(.episode-image) .episode-image { display:none; } }
+.catalogue-picker { grid-column:span 2; margin-top:24px; padding:15px; border:1px solid var(--line); background:#fafaf6; }
+.catalogue-picker select { display:block; width:100%; margin-top:8px; border:1px solid var(--line); background:#fff; padding:11px; color:var(--ink); font:inherit; }
+.catalogue-picker small { display:block; margin-top:8px; color:var(--muted); font-size:12px; text-transform:none; letter-spacing:0; font-weight:400; }
+.catalogue-picker.is-hidden { display:none; }
+.log-preview { display:block; width:180px; aspect-ratio:16/9; object-fit:cover; margin-top:18px; }
+@media (max-width:700px) { .catalogue-picker { grid-column:span 2; } .log-preview { width:100%; max-width:260px; } }
 .landing-hero { min-height:520px; display:flex; justify-content:space-between; align-items:end; padding:105px 6% 78px; border-bottom:1px solid var(--ink); }
 .landing-hero h1 { font-size:clamp(58px,10vw,132px); max-width:850px; margin-bottom:30px; }
 .landing-lead { max-width:480px; color:var(--muted); font-size:20px; line-height:1.45; }
@@ -112,3 +118,41 @@ h1,h2,h3,p { margin-top:0; } h1 { font-size:clamp(44px,6vw,78px); line-height:.9
 .experts-section { padding:100px 0 110px; } .leaderboard { border-top:1px solid var(--ink); } .leader { display:grid; grid-template-columns:55px 220px 1fr 100px; align-items:center; gap:15px; min-height:65px; border-bottom:1px solid var(--line); } .rank { color:var(--orange); font:11px Georgia,serif; } .expert-name { font-weight:700; } .expert-name small { display:block; color:var(--muted); font-size:10px; font-weight:400; margin-top:4px; } .bar { height:4px; background:#dedfd8; } .bar i { display:block; height:100%; background:var(--orange); } .leader strong { text-align:right; font-size:14px; }
 footer { border-top:1px solid var(--line); padding:24px 0; display:flex; justify-content:space-between; color:var(--muted); font-size:9px; letter-spacing:.13em; }
 @media (max-width:700px) { .shell { padding:0 18px; } .topbar { height:70px; } nav { display:none; } .status { font-size:9px; } .brand em { display:none; } .hero { padding:65px 0 55px; min-height:0; } .hero-note { display:none; } h1 { font-size:50px; } .stats-grid { grid-template-columns:1fr 1fr; margin-bottom:70px; } .stat { margin-right:12px; padding-right:10px; } .stat strong { font-size:22px; } .section-heading { align-items:start; flex-direction:column; gap:10px; } .episode-row { grid-template-columns:55px 1fr 85px; } .winner { font-size:9px; } .log-section { margin:0 -18px; padding:60px 18px; } .fields.four,.teams { grid-template-columns:1fr 1fr; } .wide { grid-column:span 2; } .teams { gap:12px; } .team-card { padding:20px 14px 16px; } .team-card legend { font-size:17px; } .item-head,.item-row { grid-template-columns:1.2fr .7fr .7fr; gap:5px; } .leader { grid-template-columns:32px 1fr 80px; gap:8px; } .bar { display:none; } .leader strong { font-size:12px; } footer { display:block; line-height:2; } }
+
+/* Bargain Hunt broadcast palette: loud, dark, red and blue, while keeping the pages fast. */
+:root { --ink:#f4f1e8; --muted:#b8c0c9; --line:rgba(244,241,232,.22); --paper:#111722; --orange:#ef302d; --red:#e21d2b; --blue:#1672b8; }
+body { background:#111722; color:var(--ink); background-image:radial-gradient(circle at 20% 10%,rgba(226,29,43,.18),transparent 28%),radial-gradient(circle at 85% 18%,rgba(22,114,184,.2),transparent 30%),linear-gradient(135deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.025) 50%,rgba(255,255,255,.025) 75%,transparent 75%); background-size:auto,auto,9px 9px; }
+.shell { max-width:1260px; }
+.topbar { border-bottom-color:rgba(244,241,232,.35); }
+.brand-mark { background:linear-gradient(135deg,var(--red) 0 50%,var(--blue) 50%); border:2px solid #f4f1e8; border-radius:50%; transform:none; font-weight:800; }
+.brand em, nav { color:#f4f1e8; }
+nav a:hover,.hero-link:hover { color:#ffd04a; }
+.eyebrow { color:#ffd04a; text-shadow:1px 1px 0 #b51222; }
+h1,h2,h3 { text-shadow:2px 2px 0 rgba(0,0,0,.28); }
+h1 i,.page-intro h1 i { color:#ffd04a; text-shadow:2px 2px 0 var(--red); }
+.landing-hero { border-bottom-color:rgba(244,241,232,.35); background:linear-gradient(120deg,rgba(226,29,43,.88) 0 43%,rgba(17,23,34,.85) 43% 57%,rgba(22,114,184,.88) 57%); box-shadow:inset 0 0 0 7px rgba(255,255,255,.08),inset 0 0 70px rgba(0,0,0,.55); }
+.landing-lead,.page-intro > p:last-child { color:#e0e5e8; }
+.hero-link { color:#fff; border-bottom-color:#ffd04a; }
+.landing-stats,.landing-recent,.episode-list,.leaderboard { border-color:rgba(244,241,232,.4); }
+.landing-stats > div { border-color:rgba(244,241,232,.22); }
+.landing-stats strong { color:#ffd04a; }
+.route-orange { background:linear-gradient(145deg,#f33430,#ad1424); }
+.route-blue { background:linear-gradient(145deg,#2587cb,#0a477d); }
+.route-dark { background:#1c2636; border:1px solid rgba(255,255,255,.24); }
+.route-paper,.catalogue-card,.person-card,.highlights article,.chart-block { background:rgba(28,38,54,.88); border-color:rgba(244,241,232,.24); }
+.route-paper { color:var(--ink); }
+.recent-card img,.recent-placeholder,.catalogue-image,.person-card img,.person-card .portrait-placeholder { background:#252d3b; }
+.recent-card span,.catalogue-meta,.catalogue-copy p,.person-card p,.muted,.empty,.highlights p,.stat span,.stat small { color:#b8c0c9; }
+.text-link,button { background:var(--red); color:#fff; border:1px solid #ff7770; }
+.text-link:hover,button:hover { background:var(--blue); }
+.filters input,.filters select,.catalogue-picker select,.team-card select { background:#1b2637; color:#fff; border-color:rgba(244,241,232,.35); }
+.filters input::placeholder,input::placeholder { color:#9da8b4; }
+.log-section,.form-block,.team-card { background:#182233; border-color:rgba(244,241,232,.25); }
+label { color:#d2d8df; }
+label input { color:#fff; border-color:rgba(244,241,232,.35); }
+.team-red { border-top:5px solid var(--red); } .team-blue { border-top:5px solid var(--blue); }
+.team-dot { background:var(--red); } .team-blue .team-dot { background:var(--blue); }
+.chart-track,.bar { background:#303b4c; } .chart-track i,.bar i { background:var(--red); } .chart-row.blue .chart-track i { background:var(--blue); }
+.catalogue-picker { background:#202c3f; }
+.success { background:#173e37; border-color:#4ad3a2; }
+@media (max-width:700px) { .landing-hero { background:linear-gradient(165deg,rgba(226,29,43,.9) 0 48%,rgba(22,114,184,.88) 48%); } .topbar { align-items:center; } .brand { min-width:0; } nav { max-width:calc(100vw - 48px); } }
