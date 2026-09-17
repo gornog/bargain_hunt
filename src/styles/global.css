@@ -166,7 +166,7 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .episode-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .team-total { display:block; margin-top:18px; padding-top:14px; border-top:1px solid rgba(244,241,232,.25); font-size:14px; font-weight:700; color:#ffd04a; }
 .team-card.final-mode .item-head,.team-card.final-mode .item-editor { display:none; }
-.teams { grid-template-columns:1fr; gap:24px; }
+.teams { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
 .team-card { padding:30px 32px 26px; border-radius:14px; box-shadow:0 18px 45px rgba(0,0,0,.2); }
 .team-heading { display:flex; align-items:center; gap:12px; }
 .team-heading small { margin-top:5px; }
@@ -192,7 +192,28 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .item-options .check { align-self:center; }
 .challenge-result:not(.is-visible) { display:none; }
 .bonus-check { margin-left:62px; }
-@media (max-width:700px) { .team-card { padding:22px 16px 20px; } .team-context { grid-template-columns:1fr; gap:18px; } .choice-buttons { flex-direction:column; } .items-board-head { grid-template-columns:1fr 70px 70px; padding-left:48px; } .item-row { grid-template-columns:42px 1fr 70px 70px; gap:7px; } .item-options { grid-template-columns:1fr 1fr; margin-left:49px; gap:9px; } .item-options label:nth-child(4),.item-options label:nth-child(5),.item-options label:nth-child(6) { grid-column:span 2; } .bonus-check { margin-left:49px; } }
+@media (max-width:700px) { .teams { grid-template-columns:1fr; } .team-card { padding:22px 16px 20px; } .team-context { grid-template-columns:1fr; gap:18px; } .choice-buttons { flex-direction:column; } .items-board-head { grid-template-columns:1fr 70px 70px; padding-left:48px; } .item-row { grid-template-columns:42px 1fr 70px 70px; gap:7px; } .item-options { grid-template-columns:1fr 1fr; margin-left:49px; gap:9px; } .item-options label:nth-child(4),.item-options label:nth-child(5),.item-options label:nth-child(6) { grid-column:span 2; } .bonus-check { margin-left:49px; } }
+
+/* Results board: intentionally replaces the old dense two-column treatment. */
+.teams { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:28px; }
+.team-card { display:block; overflow:hidden; padding:0; border:0; border-radius:16px; background:#202c40; box-shadow:0 14px 35px rgba(0,0,0,.24); }
+.team-card::before { content:''; display:block; height:7px; background:var(--red); }
+.team-card.team-blue::before { background:var(--blue); }
+.team-card summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:24px 28px 20px; list-style:none; cursor:pointer; background:rgba(255,255,255,.045); }
+.team-card summary::-webkit-details-marker { display:none; }
+.team-card summary::after { content:'⌄'; color:#ffd04a; font-size:23px; transition:transform .2s ease; }
+.team-card:not([open]) summary::after { transform:rotate(-90deg); }
+.team-heading { display:flex; align-items:center; gap:12px; font-size:25px; letter-spacing:-.04em; }
+.team-heading small { display:block; margin-top:5px; color:#aeb9c7; font:10px Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+.team-summary-hint { margin-left:auto; color:#aeb9c7; font:10px Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; }
+.team-board-body { padding:28px; }
+.team-card .team-context { grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:24px; }
+.team-card .items-board-head { margin-top:30px; padding-left:62px; }
+.team-card .item-editor { padding:18px 0; }
+.team-card .item-options { margin-left:62px; }
+.team-card .team-total { margin-top:22px; padding:17px 0 0; font-size:18px; }
+.team-card.final-mode .final-panel { margin-top:6px; }
+@media (max-width:700px) { .teams { grid-template-columns:1fr; gap:18px; } .team-card summary { padding:20px 18px 17px; } .team-heading { font-size:21px; } .team-summary-hint { display:none; } .team-board-body { padding:22px 18px 24px; } .team-card .items-board-head { margin-top:25px; padding-left:49px; } .team-card .item-options { margin-left:49px; } }
 .item-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-top:9px; padding:9px 0 2px; border-top:1px solid rgba(244,241,232,.14); }
 .item-options label { font-size:9px; }
 .item-options select { width:100%; margin-top:5px; padding:7px; font-size:11px; }
