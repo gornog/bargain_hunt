@@ -165,8 +165,18 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .combobox-options li:hover,.combobox-options li:focus { background:var(--blue); color:#fff; outline:none; }
 .episode-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .team-total { display:block; margin-top:18px; padding-top:14px; border-top:1px solid rgba(244,241,232,.25); font-size:14px; font-weight:700; color:#ffd04a; }
+.team-card.final-mode .item-head,.team-card.final-mode .item-editor { display:none; }
+.item-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-top:9px; padding:9px 0 2px; border-top:1px solid rgba(244,241,232,.14); }
+.item-options label { font-size:9px; }
+.item-options select { width:100%; margin-top:5px; padding:7px; font-size:11px; }
+.item-options input[type=number] { margin-top:5px; padding:7px; font-size:12px; }
+.item-options .check { margin-top:0; text-transform:none; letter-spacing:0; }
+.item-options select[multiple] { min-height:54px; }
 .team-total.profit { color:#4ad3a2; }
 .team-total.loss { color:#ff7770; }
 .log-synopsis { max-width:760px; margin:18px 0 0; color:var(--muted); line-height:1.5; font-size:14px; }
+.winner-banner { display:flex; justify-content:space-between; gap:18px; align-items:center; margin:20px 0; padding:18px 22px; background:linear-gradient(90deg,var(--red),var(--blue)); border:2px solid #ffd04a; color:#fff; }
+.winner-banner strong { font-size:18px; }
+.winner-banner span { font-size:13px; }
 .watch-link { display:inline-block; padding:8px 12px; color:#ffd04a; border:1px solid #ffd04a; font-size:13px; }
 .watch-link:hover { background:#ffd04a; color:#111722; }
