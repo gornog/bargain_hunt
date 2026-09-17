@@ -238,6 +238,18 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .team-card .item-options { border-color:#d5d0c4; }
 .team-card .team-total { border-color:#c9c4b7; }
 @media (max-width:700px) { .episode-auction-details { grid-template-columns:1fr; grid-column:span 2; padding:16px; } }
+
+/* Episode context fields are part of the form, not a separate card. */
+.episode-auction-details { display:contents; }
+.episode-auction-details > label { grid-column:span 1; }
+.auctioneer-entry { grid-column:span 2; min-width:0; }
+.auctioneer-entry #auctioneer-list { display:flex; gap:10px; align-items:center; }
+.auctioneer-entry .entity-combobox { flex:1; min-width:0; }
+.auctioneer-entry .entity-combobox.optional-auctioneer { display:none; }
+.add-auctioneer { margin:7px 0 0; padding:3px 0; background:transparent; color:var(--blue); border:0; font:700 11px Arial,sans-serif; }
+.add-auctioneer:hover { background:transparent; color:var(--red); }
+.episode-auction-details .entity-combobox input { margin-top:8px; }
+@media (max-width:700px) { .auctioneer-entry { grid-column:span 2; } .auctioneer-entry #auctioneer-list { display:block; } .auctioneer-entry .entity-combobox { margin-top:8px; } }
 .item-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; margin-top:9px; padding:9px 0 2px; border-top:1px solid rgba(244,241,232,.14); }
 .item-options label { font-size:9px; }
 .item-options select { width:100%; margin-top:5px; padding:7px; font-size:11px; }
