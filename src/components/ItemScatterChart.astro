@@ -1,0 +1,78 @@
+---
+/**
+ * Client-rendered scatter plot. The data is prepared during SSR and hydrated
+ * into Chart.js in the browser, so PocketBase credentials never reach the
+ * client and the page still has a useful heading when JS is unavailable.
+ */
+interface Point {
+  name: string;
+  episodeLabel: string;
+  profit: number;
+  estimateDelta: number;
+  teamColor?: string;
+  expertGolden?: boolean;
+}
+
+const { points = [] } = Astro.props as { points?: Point[] };
+const chartData = JSON.stringify(points).replace(/</g, '\\u003c');
+const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
+---
+<div class="chartjs-scatter" id={chartId} data-points={chartData}>
+  <canvas aria-label={`Scatter plot of ${points.length} recorded lots`} role="img"></canvas>
+  <div class="chartjs-tooltip" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+  import { Chart } from 'chart.js/auto';
+
+  const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
+  const formatMoney = (value: number) => money.format(value);
+  const pointColour = (point: any) => point.expertGolden ? '#ffd04a' : point.teamColor === 'Blue' ? '#2587d6' : '#ed2638';
+  const tickMoney = (value: string | number) => formatMoney(Number(value));
+
+  document.querySelectorAll<HTMLElement>('.chartjs-scatter').forEach((container) => {
+    if (container.dataset.ready) return;
+    const canvas = container.querySelector('canvas');
+    const tooltip = container.querySelector<HTMLElement>('.chartjs-tooltip');
+    if (!canvas || !tooltip) return;
+    const points = JSON.parse(container.dataset.points || '[]');
+    container.dataset.ready = 'true';
+
+    const externalTooltip = (context: any) => {
+      const model = context.tooltip;
+      if (!model.opacity) { tooltip.style.opacity = '0'; return; }
+      const point = model.dataPoints?.[0]?.raw;
+      if (!point) return;
+      tooltip.innerHTML = `<strong>${point.name}</strong><span>${point.episodeLabel}</span><span>Profit: ${formatMoney(point.x)}</span><span>Sale − auctioneer estimate: ${formatMoney(point.y)}</span>`;
+      const rect = canvas.getBoundingClientRect();
+      const parent = container.getBoundingClientRect();
+      const left = Math.min(Math.max(model.caretX + rect.left - parent.left + 12, 8), parent.width - tooltip.offsetWidth - 8);
+      const top = Math.min(Math.max(model.caretY + rect.top - parent.top - tooltip.offsetHeight - 12, 8), parent.height - tooltip.offsetHeight - 8);
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+      tooltip.style.opacity = '1';
+    };
+
+    new Chart(canvas, {
+      type: 'scatter',
+      data: { datasets: [{
+        data: points.map((point: any) => ({ x: point.profit, y: point.estimateDelta, ...point })),
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBorderWidth: 1,
+        pointBorderColor: '#111722',
+        pointBackgroundColor: (context: any) => pointColour(context.raw),
+      }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false, external: externalTooltip } },
+        scales: {
+          x: { title: { display: true, text: 'Sale − purchase', color: '#d8dee7', font: { size: 12 } }, ticks: { color: '#b8c0c9', stepSize: 10, callback: tickMoney }, grid: { color: 'rgba(244,241,232,.13)' } },
+          y: { title: { display: true, text: 'Sale − auctioneer estimate', color: '#d8dee7', font: { size: 12 } }, ticks: { color: '#b8c0c9', stepSize: 10, callback: tickMoney }, grid: { color: 'rgba(244,241,232,.13)' } },
+        },
+      },
+    });
+  });
+</script>
