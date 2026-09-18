@@ -357,9 +357,9 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 }
 
 /* Catalogue cards stay comparable even when the BBC synopsis is long. */
-.catalogue-card { min-height:295px; height:295px; }
+.catalogue-card { min-height:295px; height:295px; overflow:hidden; }
 .catalogue-image,.catalogue-image img { height:100%; }
-.catalogue-copy { min-width:0; display:flex; flex-direction:column; }
+.catalogue-copy { min-width:0; height:100%; overflow:hidden; display:flex; flex-direction:column; }
 .catalogue-copy > p { min-height:0; flex:1; overflow-y:auto; padding-right:8px; scrollbar-color:rgba(244,241,232,.55) transparent; }
 .catalogue-copy > p::-webkit-scrollbar { width:7px; }
 .catalogue-copy > p::-webkit-scrollbar-thumb { background:rgba(244,241,232,.45); border-radius:10px; }

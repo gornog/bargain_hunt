@@ -78,7 +78,9 @@ const absolute = (value) => bbcUrl(value);
 // A series page is fetched below and its own document title is the authority.
 const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)]
   .map((match) => `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`)
-  .filter((url, index, all) => all.indexOf(url) === index);
+  // The index also links back to itself. It is not a series guide and was
+  // creating a bogus "Series 75 / Episode 75 / Series" catalogue record.
+  .filter((url, index, all) => url !== guideUrl && all.indexOf(url) === index);
 
 const seriesFromPage = (html) => {
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '');
@@ -103,16 +105,19 @@ const parseEpisodes = (html, series) => {
   if (!programmeLink) return null;
   const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
-  // BBC renders the ordinal independently (for example "13/32"). Prefer it
-  // to a trailing number in a location title, which is not an episode ID.
-  const ordinal = clean(block.match(/\b(\d{1,3})\s*\/\s*\d{1,3}\b/)?.[0] || '');
-  const episode = Number(ordinal.match(/^\d+/)?.[0] || title.match(/\s(\d{1,3})$/)?.[1] || 0);
+  const rawSynopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
+  // BBC puts the card ordinal at the beginning of its synopsis (for example
+  // "25 / 32 Eric Knowles..."). Searching the whole HTML card caught unrelated
+  // URLs/attributes and collapsed many Series 74/75 records to episode 1.
+  const ordinal = rawSynopsis.match(/^(\d{1,3})\s*\/\s*\d{1,3}\b/);
+  const isSpecial = /\bspecial\b/i.test(`${title} ${rawSynopsis}`);
+  const episode = isSpecial ? 0 : Number(ordinal?.[1] || title.match(/\s(\d{1,3})$/)?.[1] || 0);
   const image = absolute(block.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
-  const synopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
+  const synopsis = rawSynopsis.replace(/^\d{1,3}\s*\/\s*\d{1,3}\s*/, '');
   const watchHref = block.match(/href=["']([^"']*\/iplayer\/episode\/[a-z0-9]+[^"']*)["']/i)?.[1] || '';
   const watch = absolute(watchHref);
-  return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image };
-  }).filter((episode) => episode && episode.title && episode.episode > 0 && !isAlternateCut(episode));
+  return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image, isSpecial };
+  }).filter((episode) => episode && episode.title && episode.title.toLowerCase() !== 'series' && (episode.episode > 0 || episode.isSpecial) && !isAlternateCut(episode));
 };
 
 const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href=["'](\/programmes\/profiles\/[^"'?]+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
@@ -234,15 +239,15 @@ if (process.argv.includes('--nuclear')) {
   if (includeLogged && !apply) throw new Error('--include-logged is destructive and requires --apply.');
   let removals = 0; let protectedCount = 0; let unknown = 0;
   for (const row of existingEpisodes) {
-    if (!row.bbc_pid) continue;
-    const standard = episodesByPid.get(row.bbc_pid);
     if (loggedEpisodeIds.has(row.id) && !includeLogged) {
       protectedCount += 1;
       continue;
     }
+    const standard = row.bbc_pid ? episodesByPid.get(row.bbc_pid) : null;
     if (standard) continue;
     unknown += 1;
-    console.log(`REMOVE nonstandard PID ${row.bbc_pid}: ${row.id} S${row.series} E${row.episod_number} ${row.title || ''}`);
+    const reason = row.bbc_pid ? `nonstandard PID ${row.bbc_pid}` : 'record with no BBC PID';
+    console.log(`REMOVE ${reason}: ${row.id} S${row.series} E${row.episod_number} ${row.title || ''}`);
     if (apply) { await pb.collection('episodes').delete(row.id); removals += 1; }
   }
   console.log(`${apply ? 'Applied' : 'Dry run'} nuclear pass: ${unknown} ${includeLogged ? '' : 'unlogged '}nonstandard BBC record(s), ${protectedCount} protected episode(s) with team data, ${removals} deletion(s).`);
