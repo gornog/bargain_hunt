@@ -120,9 +120,12 @@ const parseEpisodes = (html, series) => {
   if (!pid) return null;
   const programmeLink = block.match(/href=["'](?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/[a-z0-9]+)["']/i)?.[1];
   if (!programmeLink) return null;
-  const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
+  // BBC's older series do not consistently use a <span> for these fields.
+  // Accept the semantic class regardless of whether its content closes as a
+  // span, link, heading or paragraph.
+  const titleText = clean(block.match(/class=["'][^"']*programme__title[^"']*["'][^>]*>([\s\S]*?)<\/(?:span|a|h[1-6]|p)>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
-  const rawSynopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
+  const rawSynopsis = clean(block.match(/class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|span|div)>/i)?.[1] || '');
   // Read ordinal metadata only from its labelled card field. Do not search the
   // arbitrary HTML card: an unrelated 1/32 in markup was collapsing records to
   // episode 1. Normally "Southwell 25" is episode 25; the labelled marker
@@ -140,7 +143,12 @@ const parseEpisodes = (html, series) => {
   const synopsis = rawSynopsis.replace(/^\d{1,3}\s*\/\s*\d{1,3}\s*/, '');
   const watchHref = block.match(/href=["']([^"']*\/iplayer\/episode\/[a-z0-9]+[^"']*)["']/i)?.[1] || '';
   const watch = absolute(watchHref);
-  return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image, isSpecial };
+  // "Southwell 25" becomes the location title "Southwell", but generic
+  // historical cards such as "Episode 35" must retain their number. Without
+  // it all 35 of those cards shared the title "Episode" and collapsed into
+  // a single PocketBase record through the old fallback matcher.
+  const displayTitle = /^Episode\s+\d{1,3}$/i.test(title) ? title : title.replace(/\s+\d{1,3}$/, '').trim() || title;
+  return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: displayTitle, synopsis, image, isSpecial };
   }).filter((episode) => episode && episode.title && episode.title.toLowerCase() !== 'series' && (episode.episode > 0 || episode.isSpecial) && !isAlternateCut(episode));
 };
 
@@ -203,11 +211,30 @@ const [existingEpisodes, performances] = await Promise.all([
   pb.collection('team_performances').getFullList({ requestKey: null })
 ]);
 const loggedEpisodeIds = new Set(performances.map((performance) => performance.episode).filter(Boolean));
-const byPid = new Map(existingEpisodes.filter((record) => record.bbc_pid).map((record) => [record.bbc_pid, record]));
-const byFallback = new Map(existingEpisodes.map((record) => [`${record.series}|${record.title}`.toLowerCase(), record]));
+const recordsByPid = new Map();
+for (const record of existingEpisodes.filter((item) => item.bbc_pid)) {
+  const records = recordsByPid.get(record.bbc_pid) || [];
+  records.push(record);
+  recordsByPid.set(record.bbc_pid, records);
+}
+const byPid = new Map([...recordsByPid].map(([pid, records]) => {
+  const expected = episodesByPid.get(pid);
+  // A logged record is always canonical. Otherwise prefer the record which
+  // already has the BBC manifest coordinates before choosing the oldest one.
+  const canonical = records.find((record) => loggedEpisodeIds.has(record.id)) ||
+    records.find((record) => expected && Number(record.series) === expected.series && Number(record.episod_number) === expected.episode) ||
+    records[0];
+  return [pid, canonical];
+}));
+const legacyByCoordinate = new Map();
+for (const record of existingEpisodes.filter((item) => !item.bbc_pid && Number(item.episod_number) > 0)) {
+  const coordinate = `${record.series}|${record.episod_number}`;
+  // Do not guess if two legacy records claim the same coordinate.
+  legacyByCoordinate.set(coordinate, legacyByCoordinate.has(coordinate) ? null : record);
+}
 let created = 0; let updated = 0; let images = 0; let synopses = 0;
 for (const episode of episodes) {
-  const record = byPid.get(episode.pid) || byFallback.get(`${episode.series}|${episode.title}`.toLowerCase());
+  const record = byPid.get(episode.pid) || (episode.episode > 0 ? legacyByCoordinate.get(`${episode.series}|${episode.episode}`) : null);
   const logged = Boolean(record && loggedEpisodeIds.has(record.id));
   // Catalogue fields are filled once, not repeatedly treated as a source of
   // truth.  This preserves a corrected title, a hand-written synopsis, and all
@@ -228,7 +255,7 @@ for (const episode of episodes) {
   if (episode.synopsis && (!record || !String(record.synopsis || '').trim())) payload.synopsis = episode.synopsis;
   const saved = record ? await pb.collection('episodes').update(record.id, payload) : await pb.collection('episodes').create(payload);
   if (record) updated += 1; else { created += 1; existingEpisodes.push(saved); }
-  byPid.set(episode.pid, saved); byFallback.set(`${episode.series}|${episode.title}`.toLowerCase(), saved);
+  byPid.set(episode.pid, saved);
   if (episode.synopsis) synopses += 1;
   if (episode.image && (refreshImages || !saved.image)) { try { const blob = await fetchImage(episode.image); await pb.collection('episodes').update(saved.id, { image: new File([blob], `${episode.pid}.jpg`, { type: blob.type || 'image/jpeg' }) }); images += 1; } catch (error) { console.warn(`Could not save image for ${episode.pid}: ${error.message}`); } }
 }
@@ -281,9 +308,10 @@ if (process.argv.includes('--nuclear')) {
       continue;
     }
     const standard = row.bbc_pid ? episodesByPid.get(row.bbc_pid) : null;
-    if (standard) continue;
+    const canonical = row.bbc_pid ? byPid.get(row.bbc_pid) : null;
+    if (standard && canonical?.id === row.id) continue;
     unknown += 1;
-    const reason = row.bbc_pid ? `nonstandard PID ${row.bbc_pid}` : 'record with no BBC PID';
+    const reason = standard ? `duplicate BBC PID ${row.bbc_pid}` : row.bbc_pid ? `nonstandard PID ${row.bbc_pid}` : 'record with no BBC PID';
     console.log(`REMOVE ${reason}: ${row.id} S${row.series} E${row.episod_number} ${row.title || ''}`);
     if (apply) { await pb.collection('episodes').delete(row.id); removals += 1; }
   }
