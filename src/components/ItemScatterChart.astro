@@ -20,6 +20,7 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
 <div class="chartjs-scatter" id={chartId} data-points={chartData}>
   <canvas aria-label={`Scatter plot of ${points.length} recorded lots`} role="img"></canvas>
   <div class="chartjs-tooltip" role="status" aria-live="polite"></div>
+  <p class="chart-fallback">Interactive chart loading…</p>
 </div>
 
 <script>
@@ -30,10 +31,11 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
   const pointColour = (point: any) => point.expertGolden ? '#ffd04a' : point.teamColor === 'Blue' ? '#2587d6' : '#ed2638';
   const tickMoney = (value: string | number) => formatMoney(Number(value));
 
-  document.querySelectorAll<HTMLElement>('.chartjs-scatter').forEach((container) => {
+  const init = () => document.querySelectorAll<HTMLElement>('.chartjs-scatter').forEach((container) => {
     if (container.dataset.ready) return;
     const canvas = container.querySelector('canvas');
     const tooltip = container.querySelector<HTMLElement>('.chartjs-tooltip');
+    const fallback = container.querySelector<HTMLElement>('.chart-fallback');
     if (!canvas || !tooltip) return;
     const points = JSON.parse(container.dataset.points || '[]');
     container.dataset.ready = 'true';
@@ -53,7 +55,7 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       tooltip.style.opacity = '1';
     };
 
-    new Chart(canvas, {
+    try { new Chart(canvas, {
       type: 'scatter',
       data: { datasets: [{
         data: points.map((point: any) => ({ x: point.profit, y: point.estimateDelta, ...point })),
@@ -61,7 +63,7 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
         pointHoverRadius: 5,
         pointBorderWidth: 1,
         pointBorderColor: '#111722',
-        pointBackgroundColor: (context: any) => pointColour(context.raw),
+        pointBackgroundColor: (context: any) => pointColour(context.raw || {}),
       }] },
       options: {
         responsive: true,
@@ -73,6 +75,9 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
           y: { title: { display: true, text: 'Sale − auctioneer estimate', color: '#d8dee7', font: { size: 12 } }, ticks: { color: '#b8c0c9', stepSize: 10, callback: tickMoney }, grid: { color: 'rgba(244,241,232,.13)' } },
         },
       },
-    });
+    }); fallback?.remove(); } catch (error) { console.error('Unable to render item scatter chart', error); if (fallback) fallback.textContent = 'Interactive chart unavailable; the underlying lot data is still listed below.'; }
   });
+  // Astro can place bundled component scripts before the browser has completed
+  // layout. Defer one frame so Chart.js can acquire a real canvas context.
+  requestAnimationFrame(init);
 </script>
