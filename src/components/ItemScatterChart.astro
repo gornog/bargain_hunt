@@ -46,7 +46,7 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       if (!model.opacity) { tooltip.style.opacity = '0'; return; }
       const point = model.dataPoints?.[0]?.raw;
       if (!point) return;
-      tooltip.innerHTML = `<strong>${point.name}</strong><span>${point.episodeLabel}</span><span>Profit: ${formatMoney(point.x)}</span><span>Sale − auctioneer estimate: ${formatMoney(point.y)}</span>`;
+      tooltip.innerHTML = `<span class="tooltip-kicker">${point.expertGolden ? 'Expert golden gavel' : `${point.teamColor || 'Recorded'} team lot`}</span><strong>${point.name}</strong><span class="tooltip-episode">${point.episodeLabel}</span><dl><div><dt>Profit</dt><dd>${formatMoney(point.x)}</dd></div><div><dt>Vs estimate</dt><dd>${formatMoney(point.y)}</dd></div></dl>`;
       const rect = canvas.getBoundingClientRect();
       const parent = container.getBoundingClientRect();
       const left = Math.min(Math.max(model.caretX + rect.left - parent.left + 12, 8), parent.width - tooltip.offsetWidth - 8);
@@ -60,20 +60,21 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       type: 'scatter',
       data: { datasets: [{
         data: points.map((point: any) => ({ x: point.profit, y: point.estimateDelta, ...point })),
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        pointBorderWidth: 1,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+        pointBorderWidth: 2,
         pointBorderColor: '#111722',
         pointBackgroundColor: (context: any) => pointColour(context.raw || {}),
       }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
+        animation: { duration: 760, easing: 'easeOutQuart' },
+        animations: { radius: { duration: 520, easing: 'easeOutBack', from: 0 } },
         plugins: { legend: { display: false }, tooltip: { enabled: false, external: externalTooltip } },
         scales: {
-          x: { title: { display: true, text: 'Sale − purchase', color: '#d8dee7', font: { size: 12 } }, ticks: { color: '#b8c0c9', stepSize: 10, callback: tickMoney }, grid: { color: 'rgba(244,241,232,.13)' } },
-          y: { title: { display: true, text: 'Sale − auctioneer estimate', color: '#d8dee7', font: { size: 12 } }, ticks: { color: '#b8c0c9', stepSize: 10, callback: tickMoney }, grid: { color: 'rgba(244,241,232,.13)' } },
+          x: { title: { display: true, text: 'Sale − purchase', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
+          y: { title: { display: true, text: 'Sale − auctioneer estimate', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
         },
       },
     }); fallback?.remove(); } catch (error) { console.error('Unable to render item scatter chart', error); if (fallback) fallback.textContent = 'Interactive chart unavailable; the underlying lot data is still listed below.'; }

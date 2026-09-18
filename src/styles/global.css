@@ -291,11 +291,17 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .scatter-x-label { left:50%; bottom:-23px; transform:translateX(-50%); white-space:nowrap; }
 .scatter-zero-y { left:calc(50% + 6px); bottom:-18px; }
 .scatter-zero-x { left:-22px; top:calc(50% - 7px); }
-.chartjs-scatter { position:relative; height:430px; margin:26px 8px 16px; }
+.chartjs-scatter { position:relative; height:430px; margin:26px 8px 16px; padding:12px; border:1px solid rgba(244,241,232,.12); border-radius:10px; background:linear-gradient(145deg,rgba(37,135,214,.08),transparent 45%),rgba(9,16,29,.18); }
 .chartjs-scatter canvas { display:block; width:100%; height:100%; }
-.chartjs-tooltip { position:absolute; z-index:20; pointer-events:none; opacity:0; max-width:260px; padding:10px 12px; color:#111722; background:#fffdf5; border:1px solid #d1b24b; border-radius:6px; box-shadow:0 8px 22px rgba(0,0,0,.32); font-size:12px; line-height:1.35; transition:opacity .08s ease; }
+.chartjs-tooltip { position:absolute; z-index:20; pointer-events:none; opacity:0; min-width:190px; max-width:270px; padding:12px 14px; color:#111722; background:#fffdf5; border:1px solid #d1b24b; border-radius:9px; box-shadow:0 12px 28px rgba(0,0,0,.36); font-size:12px; line-height:1.35; transition:opacity .12s ease,transform .12s ease; }
 .chartjs-tooltip strong,.chartjs-tooltip span { display:block; }
 .chartjs-tooltip strong { margin-bottom:3px; font-size:13px; }
+.chartjs-tooltip .tooltip-kicker { color:#9a6200; font:700 10px/1.2 Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; }
+.chartjs-tooltip .tooltip-episode { color:#596577; }
+.chartjs-tooltip dl { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 0; padding-top:9px; border-top:1px solid #d6d9df; }
+.chartjs-tooltip dl div { display:grid; gap:1px; }
+.chartjs-tooltip dt { color:#6a7482; font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+.chartjs-tooltip dd { margin:0; font-weight:700; }
 .chart-fallback { padding:120px 20px; text-align:center; color:#b8c0c9; }
 .stats-chart-slot,.stats-chart { min-height:300px; }
 .stats-chart canvas { width:100% !important; height:300px !important; }
