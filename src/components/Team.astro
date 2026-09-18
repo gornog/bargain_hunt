@@ -1,6 +1,6 @@
 ---
 import PersonCombobox from './PersonCombobox.astro';
-const { color, label, experts, performance } = Astro.props;
+const { color, label, experts, performance, golden = false } = Astro.props;
 const tone = color === 'red' ? 'team-red' : 'team-blue';
 const eligibleExperts = experts.filter((expert: any) => expert.is_expert);
 const field = (name: string) => performance?.[name] ?? '';
@@ -12,7 +12,7 @@ const itemChecked = (slot: number, name: string) => Boolean(itemFor(slot)?.[name
 const finalMode = field('result_mode') === 'final';
 ---
 <details class={`team-card ${tone} ${finalMode ? 'final-mode' : ''}`} data-team-card={color} open>
-  <summary><span class="team-heading"><span class="team-dot"></span><span>{label}<small>Results board</small></span></span><span class="team-summary-hint">Collapse</span></summary>
+  <summary><span class="team-heading"><span class="team-dot"></span><span>{label}<small>Results board</small></span>{golden && <span class="golden-gavel-badge"><img src="/assets/golden-gavel.png" alt="" /> Golden Gavel</span>}</span><span class="team-summary-hint">Collapse</span></summary>
   <div class="team-board-body">
   <div class="team-context">
     <label>Assigned expert<PersonCombobox id={`${color}-expert`} name={`${color}_expert`} experts={eligibleExperts.length ? eligibleExperts : experts} value={performance?.expand?.expert?.name ?? ''} placeholder="Start typing an expert" /></label>
@@ -23,6 +23,6 @@ const finalMode = field('result_mode') === 'final';
     <div class="items-board-head"><span>Purchases and sales</span><span>Paid</span><span>Sold</span></div>
     {[1, 2, 3, 4].map((slot) => { const item = slot === 4 ? 'bonus' : String(slot); const challenge = slot < 4 && itemChecked(slot, 'is_challenge'); return <article class={`item-editor ${slot === 4 ? 'bonus-row' : ''}`}><div class="item-row"><span class="item-number">{slot === 4 ? 'BONUS' : `ITEM ${slot}`}</span><input type="text" name={`${color}_item_${slot}_name`} value={itemValue(slot, 'name')} aria-label={`${label} ${item} name`} placeholder={`${slot === 4 ? 'Bonus item' : `Item ${slot}`} description`} /><input type="number" step="0.01" name={`${color}_item_${slot}_buy`} value={itemValue(slot, 'buy_price')} aria-label={`${label} ${item} paid`} placeholder="£0" /><input type="number" step="0.01" name={`${color}_item_${slot}_sell`} value={itemValue(slot, 'sell_price')} aria-label={`${label} ${item} sold`} placeholder="£0" /></div>{slot < 4 ? <div class="item-options"><label class="check"><input type="checkbox" name={`${color}_item_${slot}_challenge`} checked={challenge} /> Challenge</label><label class="check"><input type="checkbox" name={`${color}_item_${slot}_big_spend`} checked={itemChecked(slot, 'is_big_spend')} /> Big spend</label><label class="check"><input type="checkbox" name={`${color}_item_${slot}_disqualified`} checked={itemChecked(slot, 'disqualified') || checked(`item_${slot}_disqualified`)} /> Disqualified</label><label class={`challenge-result ${challenge ? 'is-visible' : ''}`}>Challenge result<select name={`${color}_item_${slot}_challenge_result`}><option value="passed" selected={itemFor(slot)?.challenge_result !== 'failed'}>Passed</option><option value="failed" selected={itemFor(slot)?.challenge_result === 'failed'}>Failed</option></select></label><label>Top estimate<input type="number" step="0.01" name={`${color}_item_${slot}_estimate`} value={itemValue(slot, 'auctioneer_estimate')} placeholder="£0" /></label></div> : <div class="bonus-details"><label>Top estimate<input type="number" step="0.01" name={`${color}_item_4_estimate`} value={itemValue(4, 'auctioneer_estimate')} placeholder="£0" /></label><label class="check bonus-check"><input type="checkbox" name={`${color}_bonus_accepted`} checked={checked('bonus_accepted')} /> Bonus accepted</label></div>}</article>; })}
   </div>
-  <output class="team-total" data-team-total={color}>Current result: £0</output>
+  <output class="team-total" data-team-total={color}>Current result: £0</output>{golden && <div class="golden-gavel-callout"><img src="/assets/golden-gavel.png" alt="" /> Golden Gavel</div>}
   </div>
 </details>
