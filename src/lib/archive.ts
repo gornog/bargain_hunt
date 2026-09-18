@@ -45,7 +45,7 @@ export async function loadArchive() {
     pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }),
     optional('items'),
     optional('auction_houses'),
-    optional('auctioneers')
+    optional('auctioneers', 'auction_house,expert')
   ]);
   // Build the relations once. The original nested filters made each request scale
   // with the number of performances multiplied by the number of items/episodes.

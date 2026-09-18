@@ -380,6 +380,21 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .expert-golden-inline img,.expert-golden-stats img { width:28px; height:17px; object-fit:contain; mix-blend-mode:multiply; }
 .expert-golden-stats { display:grid; gap:7px; margin-top:18px; color:#9a5b00; font:700 10px Arial,sans-serif; letter-spacing:.06em; text-transform:uppercase; }
 .expert-golden-stats span { display:flex; align-items:center; gap:6px; }
+
+/* Final layout polish */
+.route-grid .route-dark { background:linear-gradient(135deg,#ed1c2e,#8b315f); border:0; color:#fff; }
+.route-grid .route-paper { background:linear-gradient(135deg,#176fb5,#123b73); border:0; color:#fff; }
+.recent-team + .recent-team { display:block; margin-top:5px; padding-top:5px; border-top:1px solid rgba(244,241,232,.28); }
+.expert-golden-stats { gap:0; border-top:1px solid rgba(255,255,255,.32); padding-top:12px; }
+.expert-golden-stats span { justify-content:space-between; padding:6px 0; }
+.expert-golden-stats b { font-size:15px; color:#fff; }
+.expert-golden-stats img { display:none; }
+.golden-gavel-callout { justify-content:flex-end; margin-left:auto; width:max-content; }
+.assigned-expert-field { display:flex; align-items:center; gap:8px; }
+.assigned-expert-field .person-combobox { flex:1; min-width:0; }
+.assigned-expert-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; flex:0 0 28px; }
+.auctioneer-entry .field-caption { display:block; min-height:19px; }
+.auctioneer-entry #auctioneer-list { margin-top:8px; }
 @media (max-width:700px) {
   .team-card .item-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .team-card .item-options label:nth-child(4),.team-card .item-options label:nth-child(5),.team-card .item-options label:nth-child(6) { grid-column:span 2; }
