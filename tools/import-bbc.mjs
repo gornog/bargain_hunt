@@ -76,11 +76,28 @@ const absolute = (value) => bbcUrl(value);
 // not infer a series number from text *before* a link: that was assigning the
 // next series' cards to the preceding heading (for example S71E13 as S68E13).
 // A series page is fetched below and its own document title is the authority.
-const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)]
-  .map((match) => `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`)
-  // The index also links back to itself. It is not a series guide and was
-  // creating a bogus "Series 75 / Episode 75 / Series" catalogue record.
-  .filter((url, index, all) => url !== guideUrl && all.indexOf(url) === index);
+const parseSeriesLinks = (html) => [...html.matchAll(/<a\b[^>]*href=["'](?:https?:\/\/www\.bbc\.co\.uk)?(\/programmes\/([a-z0-9]+)\/episodes\/guide)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+  .map((match) => ({ url: `https://www.bbc.co.uk${match[1]}`, label: clean(match[3]) }))
+  // Extended/shortened series are separate accordion sections in the guide.
+  // Exclude the whole section by its visible link label, rather than hoping
+  // that each individual card repeats "55-minute version" in its title.
+  .filter(({ url, label }) => url !== guideUrl && !/\b(?:extended|55[-\s]?minute|30[-\s]?minute)\b/i.test(label))
+  .filter((entry, index, all) => all.findIndex(({ url }) => url === entry.url) === index)
+  .map(({ url }) => url);
+
+const parseEpisodePageLinks = (html, seriesUrl) => {
+  const target = new URL(seriesUrl);
+  return [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((match) => ({ url: bbcUrl(match[1], seriesUrl), label: clean(match[2]) }))
+    .filter(({ url, label }) => {
+      if (!url) return false;
+      const candidate = new URL(url);
+      return candidate.pathname === target.pathname && candidate.search &&
+        (/\b(?:more\s+episodes|next|page\s+\d+)\b/i.test(label) || candidate.searchParams.has('page'));
+    })
+    .filter((entry, index, all) => all.findIndex(({ url }) => url === entry.url) === index)
+    .map(({ url }) => url);
+};
 
 const seriesFromPage = (html) => {
   const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '');
@@ -91,7 +108,7 @@ const seriesFromPage = (html) => {
   return Number(heading.match(/\bseries\s+(\d+)\b/i)?.[1] || 0);
 };
 
-const isAlternateCut = ({ title, synopsis }) => /\b(?:extended|short(?:ened)?|condensed|30\s*(?:min(?:ute)?s?)|55\s*(?:min(?:ute)?s?))\b/i.test(`${title} ${synopsis}`);
+const isAlternateCut = ({ title, synopsis }) => /\b(?:extended|short(?:ened)?|condensed|30\s*(?:min(?:ute)?s?)|55\s*(?:min(?:ute)?s?))\b/i.test(`${title} ${synopsis}`) || /\b\d{1,3}\s+and\s*$/i.test(title);
 
 const parseEpisodes = (html, series) => {
   const starts = [...html.matchAll(/<div\b[^>]*class=["'][^"']*\bprogramme--episode\b[^"']*["'][^>]*>/gi)];
@@ -106,12 +123,19 @@ const parseEpisodes = (html, series) => {
   const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
   const rawSynopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
-  // BBC puts the card ordinal at the beginning of its synopsis (for example
-  // "25 / 32 Eric Knowles..."). Searching the whole HTML card caught unrelated
-  // URLs/attributes and collapsed many Series 74/75 records to episode 1.
+  // Read ordinal metadata only from its labelled card field. Do not search the
+  // arbitrary HTML card: an unrelated 1/32 in markup was collapsing records to
+  // episode 1. Normally "Southwell 25" is episode 25; the labelled marker
+  // wins when it is present (older cards occasionally disagree with the title).
+  const cardText = clean(block);
+  const labelledEpisode = cardText.match(/\bEpisode\s+(\d{1,3})\s+of\s+\d{1,3}\b/i)?.[1];
   const ordinal = rawSynopsis.match(/^(\d{1,3})\s*\/\s*\d{1,3}\b/);
-  const isSpecial = /\bspecial\b/i.test(`${title} ${rawSynopsis}`);
-  const episode = isSpecial ? 0 : Number(ordinal?.[1] || title.match(/\s(\d{1,3})$/)?.[1] || 0);
+  const titleEpisode = title.match(/\s(\d{1,3})$/)?.[1];
+  // Specials and other deliberately unnumbered BBC programmes remain useful
+  // catalogue entries, but are N/A so they cannot collide with a standard
+  // episode number or invite duplicate logging.
+  const isSpecial = /\bspecial\b/i.test(`${title} ${rawSynopsis}`) || (!labelledEpisode && !titleEpisode && !ordinal);
+  const episode = isSpecial ? 0 : Number(labelledEpisode || titleEpisode || ordinal?.[1] || 0);
   const image = absolute(block.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
   const synopsis = rawSynopsis.replace(/^\d{1,3}\s*\/\s*\d{1,3}\s*/, '');
   const watchHref = block.match(/href=["']([^"']*\/iplayer\/episode\/[a-z0-9]+[^"']*)["']/i)?.[1] || '';
@@ -152,9 +176,22 @@ for (let page = 1; page <= 4; page += 1) {
     const seriesHtml = await fetchHtml(seriesUrl);
     const series = seriesFromPage(seriesHtml);
     if (!series) { console.warn(`  Skipped series page without a verified series number: ${seriesUrl}`); continue; }
-    const found = parseEpisodes(seriesHtml, series);
-    console.log(`  Series ${series}: ${found.length} standard episode cards`);
-    for (const episode of found) episodesByPid.set(episode.pid, episode);
+    const pendingPages = [seriesUrl];
+    const fetchedPages = new Set();
+    let cards = 0;
+    while (pendingPages.length) {
+      const episodePageUrl = pendingPages.shift();
+      if (!episodePageUrl || fetchedPages.has(episodePageUrl)) continue;
+      fetchedPages.add(episodePageUrl);
+      const episodeHtml = episodePageUrl === seriesUrl ? seriesHtml : await fetchHtml(episodePageUrl);
+      const found = parseEpisodes(episodeHtml, series);
+      cards += found.length;
+      for (const episode of found) episodesByPid.set(episode.pid, episode);
+      for (const moreUrl of parseEpisodePageLinks(episodeHtml, seriesUrl)) {
+        if (!fetchedPages.has(moreUrl)) pendingPages.push(moreUrl);
+      }
+    }
+    console.log(`  Series ${series}: ${cards} episode cards across ${fetchedPages.size} page(s)`);
   }
   console.log(`Guide page ${page}: ${episodesByPid.size} unique episode links collected`);
 }
@@ -181,7 +218,7 @@ for (const episode of episodes) {
     // coordinates from that identity as long as this record has no user log.
     payload.series = episode.series;
     payload.episod_number = episode.episode;
-    if (!record || !record.title) payload.title = episode.title;
+    payload.title = episode.title;
   }
   if (episode.pid) payload.bbc_pid = episode.pid;
   if (episode.url) payload.bbc_url = episode.url;

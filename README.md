@@ -30,6 +30,14 @@ npm run import:bbc:nuclear -- --apply --include-logged
 
 `--include-logged` is intentionally dangerous and is rejected without `--apply`.
 
+Episode and expert images are downloaded only when the PocketBase record has no
+image, so routine syncs do not repeatedly request BBC media. To deliberately
+refresh stored images, set `BBC_REFRESH_IMAGES=true` for that run:
+
+```sh
+BBC_REFRESH_IMAGES=true POCKETBASE_URL=http://localhost:8090 npm run import:bbc
+```
+
 For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://pocketbase:8090`.
 
 
