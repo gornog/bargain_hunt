@@ -4,13 +4,12 @@ const pocketBaseUrl = process.env.POCKETBASE_URL || 'http://localhost:8090';
 const pb = new PocketBase(pocketBaseUrl);
 const superuserToken = process.env.POCKETBASE_SUPERUSER_TOKEN;
 if (superuserToken) pb.authStore.save(superuserToken);
-else if (process.env.NODE_ENV === 'production') throw new Error('POCKETBASE_SUPERUSER_TOKEN must be configured in production.');
-const pocketBaseAdminEmail = process.env.POCKETBASE_ADMIN_EMAIL;
-const pocketBaseAdminPassword = process.env.POCKETBASE_ADMIN_PASSWORD;
-if (Boolean(pocketBaseAdminEmail) !== Boolean(pocketBaseAdminPassword)) {
-  throw new Error('Set both POCKETBASE_ADMIN_EMAIL and POCKETBASE_ADMIN_PASSWORD, or neither.');
+const pocketBaseAdminEmail = process.env.POCKETBASE_SUPERUSER_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
+const pocketBaseAdminPassword = process.env.POCKETBASE_SUPERUSER_PASSWORD || process.env.POCKETBASE_ADMIN_PASSWORD;
+if (!superuserToken && Boolean(pocketBaseAdminEmail) !== Boolean(pocketBaseAdminPassword)) {
+  throw new Error('Set both POCKETBASE_SUPERUSER_EMAIL and POCKETBASE_SUPERUSER_PASSWORD, or neither.');
 }
-if (pocketBaseAdminEmail) {
+if (!superuserToken && pocketBaseAdminEmail) {
   await pb.collection('_superusers').authWithPassword(pocketBaseAdminEmail, pocketBaseAdminPassword);
 }
 const guideUrl = 'https://www.bbc.co.uk/programmes/b006nb9z/episodes/guide';
@@ -73,7 +72,24 @@ const fetchImage = async (url) => {
 };
 const absolute = (value) => bbcUrl(value);
 
-const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)].map((match) => { const block = html.slice(Math.max(0, match.index - 1800), Math.min(html.length, match.index + 300)); return { url: `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`, label: clean(block), series: Number(clean(block).match(/series\s*(\d+)/i)?.[1] || 0) }; }).filter((series, index, all) => series.series && all.findIndex((item) => item.url === series.url) === index);
+// The catalogue index contains links for several series in one large page.  Do
+// not infer a series number from text *before* a link: that was assigning the
+// next series' cards to the preceding heading (for example S71E13 as S68E13).
+// A series page is fetched below and its own document title is the authority.
+const parseSeriesLinks = (html) => [...html.matchAll(/(?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/([a-z0-9]+)\/episodes\/guide/gi)]
+  .map((match) => `https://www.bbc.co.uk/programmes/${match[1]}/episodes/guide`)
+  .filter((url, index, all) => all.indexOf(url) === index);
+
+const seriesFromPage = (html) => {
+  const title = clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '');
+  const fromTitle = title.match(/\bseries\s+(\d+)\b/i)?.[1];
+  if (fromTitle) return Number(fromTitle);
+  // The h1 is a fallback for BBC templates which omit the series in <title>.
+  const heading = clean(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '');
+  return Number(heading.match(/\bseries\s+(\d+)\b/i)?.[1] || 0);
+};
+
+const isAlternateCut = ({ title, synopsis }) => /\b(?:extended|short(?:ened)?|condensed|30\s*(?:min(?:ute)?s?)|55\s*(?:min(?:ute)?s?))\b/i.test(`${title} ${synopsis}`);
 
 const parseEpisodes = (html, series) => {
   const starts = [...html.matchAll(/<div\b[^>]*class=["'][^"']*\bprogramme--episode\b[^"']*["'][^>]*>/gi)];
@@ -90,9 +106,10 @@ const parseEpisodes = (html, series) => {
   const episode = Number(title.match(/\s(\d{1,3})$/)?.[1] || 0);
   const image = absolute(block.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
   const synopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
-  const watch = block.match(/href=["'](https?:\/\/www\.bbc\.co\.uk\/iplayer\/episode\/[a-z0-9]+)["']/i)?.[1] || '';
+  const watchHref = block.match(/href=["']([^"']*\/iplayer\/episode\/[a-z0-9]+[^"']*)["']/i)?.[1] || '';
+  const watch = absolute(watchHref);
   return { pid, url: `https://www.bbc.co.uk${programmeLink}`, watch, series, episode, title: title.replace(/\s+\d{1,3}$/, '').trim() || title, synopsis, image };
-  }).filter((episode) => episode && episode.title);
+  }).filter((episode) => episode && episode.title && episode.episode > 0 && !isAlternateCut(episode));
 };
 
 const parseProfileLinks = (html, role) => [...html.matchAll(/<a[^>]+href=["'](\/programmes\/profiles\/[^"'?]+)["'][^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
@@ -121,27 +138,49 @@ for (let page = 1; page <= 4; page += 1) {
   const html = await fetchHtml(guidePageUrl);
   const seriesLinks = parseSeriesLinks(html);
   console.log(`Guide page ${page}: ${html.length} bytes, ${seriesLinks.length} series links`);
-  for (const series of seriesLinks) {
-    if (fetchedSeries.has(series.url)) continue;
-    fetchedSeries.add(series.url);
-    const seriesHtml = await fetchHtml(series.url); const found = parseEpisodes(seriesHtml, series.series); console.log(`  Series ${series.series}: ${found.length} episode cards`); for (const episode of found) episodesByPid.set(episode.pid, episode);
+  for (const seriesUrl of seriesLinks) {
+    if (fetchedSeries.has(seriesUrl)) continue;
+    fetchedSeries.add(seriesUrl);
+    const seriesHtml = await fetchHtml(seriesUrl);
+    const series = seriesFromPage(seriesHtml);
+    if (!series) { console.warn(`  Skipped series page without a verified series number: ${seriesUrl}`); continue; }
+    const found = parseEpisodes(seriesHtml, series);
+    console.log(`  Series ${series}: ${found.length} standard episode cards`);
+    for (const episode of found) episodesByPid.set(episode.pid, episode);
   }
   console.log(`Guide page ${page}: ${episodesByPid.size} unique episode links collected`);
 }
 const episodes = [...episodesByPid.values()];
 if (!episodes.length) throw new Error('BBC guide returned no episode links. Check the saved HTML and parser selectors.');
 
-const existingEpisodes = await pb.collection('episodes').getFullList({ requestKey: null });
+const [existingEpisodes, performances] = await Promise.all([
+  pb.collection('episodes').getFullList({ requestKey: null }),
+  pb.collection('team_performances').getFullList({ requestKey: null })
+]);
+const loggedEpisodeIds = new Set(performances.map((performance) => performance.episode).filter(Boolean));
 const byPid = new Map(existingEpisodes.filter((record) => record.bbc_pid).map((record) => [record.bbc_pid, record]));
 const byFallback = new Map(existingEpisodes.map((record) => [`${record.series}|${record.title}`.toLowerCase(), record]));
 let created = 0; let updated = 0; let images = 0; let synopses = 0;
 for (const episode of episodes) {
-  const payload = { series: episode.series, episod_number: episode.episode, title: episode.title };
+  const record = byPid.get(episode.pid) || byFallback.get(`${episode.series}|${episode.title}`.toLowerCase());
+  const logged = Boolean(record && loggedEpisodeIds.has(record.id));
+  // Catalogue fields are filled once, not repeatedly treated as a source of
+  // truth.  This preserves a corrected title, a hand-written synopsis, and all
+  // logged episode identity data.  BBC metadata can still be refreshed.
+  const payload = {};
+  if (!record || !logged) {
+    // PID is BBC's stable identity.  It is safe to repair the catalogue
+    // coordinates from that identity as long as this record has no user log.
+    payload.series = episode.series;
+    payload.episod_number = episode.episode;
+    if (!record || !record.title) payload.title = episode.title;
+  }
   if (episode.pid) payload.bbc_pid = episode.pid;
   if (episode.url) payload.bbc_url = episode.url;
   if (episode.watch) payload.watch = episode.watch;
-  if (episode.synopsis) payload.synopsis = episode.synopsis;
-  const record = byPid.get(episode.pid) || byFallback.get(`${episode.series}|${episode.title}`.toLowerCase());
+  // An existing synopsis is considered curated.  In particular this prevents
+  // a user's text being replaced with BBC text or a placeholder on a later run.
+  if (episode.synopsis && (!record || !String(record.synopsis || '').trim())) payload.synopsis = episode.synopsis;
   const saved = record ? await pb.collection('episodes').update(record.id, payload) : await pb.collection('episodes').create(payload);
   if (record) updated += 1; else { created += 1; existingEpisodes.push(saved); }
   byPid.set(episode.pid, saved); byFallback.set(`${episode.series}|${episode.title}`.toLowerCase(), saved);

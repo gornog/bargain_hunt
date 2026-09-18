@@ -1,10 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { loadArchive, fileUrl } from '../lib/archive';
+import { loadArchive, fileUrl, teamProfit } from '../lib/archive';
 
 const { experts, performances, details } = await loadArchive();
 const portrait = (expert: any) => fileUrl(expert, expert.avatar);
-const teamProfit = (team: any) => Number(team.profit || 0);
 const expertSummary = (expert: any) => { const rows = performances.filter((team: any) => team.expert === expert.id || team.expand?.expert?.id === expert.id); const wins = rows.filter((team: any) => { const episode = details.find((entry) => entry.id === team.episode); return episode?.winner === team.team_color; }).length; const losses = rows.length - wins; const bonuses = rows.filter((team: any) => team.bonus_accepted).length; return { wins, losses, bonuses, profit: rows.reduce((sum, team) => sum + teamProfit(team), 0) }; };
 ---
 <Layout>
