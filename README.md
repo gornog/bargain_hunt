@@ -12,8 +12,12 @@ POCKETBASE_URL=http://localhost:8090 npm run import:bbc
 
 The importer only fills episode metadata (series, episode number, title, date and presenter). Team prices, team experts and results are intentionally left for the field-notes form, because that information is not supplied by the BBC guide.
 
-For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://bargain_hunt_db:8090`.
+For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://pocketbase:8090`.
 
+
+## Production and private editing
+
+See [the production deployment guide](deploy/README.md). It keeps PocketBase off the host network, locks its collection rules, and protects `/log` with an editor sign-in.
 ## Development
 
 `npm run dev` starts Astro on all interfaces at port 4321. For production, use `npm run build` followed by `node ./dist/server/entry.mjs`.

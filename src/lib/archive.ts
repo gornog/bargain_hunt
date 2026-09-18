@@ -1,7 +1,20 @@
 import PocketBase from 'pocketbase';
 
-export const pocketBaseUrl = import.meta.env.POCKETBASE_URL || 'http://bargain_hunt_db:8090';
-export const pb = new PocketBase(pocketBaseUrl);
+export const pocketBaseUrl = import.meta.env.POCKETBASE_URL || 'http://pocketbase:8090';
+/** Creates a request-scoped, server-only PocketBase client. */
+export async function getPocketBase() {
+  const client = new PocketBase(pocketBaseUrl);
+  client.autoCancellation(false);
+  const token = import.meta.env.POCKETBASE_SUPERUSER_TOKEN;
+  if (token) client.authStore.save(token);
+  else {
+    const email = import.meta.env.POCKETBASE_SUPERUSER_EMAIL;
+    const password = import.meta.env.POCKETBASE_SUPERUSER_PASSWORD;
+    if (Boolean(email) !== Boolean(password)) throw new Error('Set both POCKETBASE_SUPERUSER_EMAIL and POCKETBASE_SUPERUSER_PASSWORD, or neither.');
+    if (email && password) await client.collection('_superusers').authWithPassword(email, password);
+  }
+  return client;
+}
 export const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 2 });
 export const value = (v: unknown) => Number(v || 0);
 export const teamTotal = (team: any, key: 'buy' | 'sell') => [1, 2, 3, 'bonus'].reduce((sum, n) => {
@@ -20,6 +33,7 @@ export const hasTeamData = (team: any) => Boolean((team?.result_mode === 'final'
 export const fileUrl = (record: any, filename: string) => filename ? `/api/pocketbase-file?collection=${encodeURIComponent(record.collectionId)}&record=${encodeURIComponent(record.id)}&file=${encodeURIComponent(filename)}` : '';
 
 export async function loadArchive() {
+  const pb = await getPocketBase();
   const optional = async (collection: string, expand = '') => { try { return await pb.collection(collection).getFullList({ requestKey: null, ...(expand ? { expand } : {}), }); } catch { return []; } };
   const [experts, episodes, performances, items, auctionHouses, auctioneers] = await Promise.all([
     pb.collection('experts').getFullList({ sort: 'name' }),
@@ -29,9 +43,29 @@ export async function loadArchive() {
     optional('auction_houses'),
     optional('auctioneers')
   ]);
-  performances.forEach((performance: any) => { performance.items = items.filter((item: any) => item.team_performance === performance.id || item.expand?.team_performance?.id === performance.id); });
+  // Build the relations once. The original nested filters made each request scale
+  // with the number of performances multiplied by the number of items/episodes.
+  // This is noticeable after importing a few series and is avoidable on every SSR
+  // page render.
+  const itemsByPerformance = new Map<string, any[]>();
+  for (const item of items) {
+    const performanceId = item.team_performance || item.expand?.team_performance?.id;
+    if (!performanceId) continue;
+    const grouped = itemsByPerformance.get(performanceId) || [];
+    grouped.push(item);
+    itemsByPerformance.set(performanceId, grouped);
+  }
+  const performancesByEpisode = new Map<string, any[]>();
+  for (const performance of performances) {
+    performance.items = itemsByPerformance.get(performance.id) || [];
+    const episodeId = performance.episode || performance.expand?.episode?.id;
+    if (!episodeId) continue;
+    const grouped = performancesByEpisode.get(episodeId) || [];
+    grouped.push(performance);
+    performancesByEpisode.set(episodeId, grouped);
+  }
   const details = episodes.map((episode: any) => {
-    const teams = performances.filter((team: any) => team.episode === episode.id || team.expand?.episode?.id === episode.id);
+    const teams = performancesByEpisode.get(episode.id) || [];
     const scored = teams.filter(hasTeamData).map((team: any) => ({ ...team, profit: teamProfit(team) })).sort((a: any, b: any) => b.profit - a.profit);
     const isLogged = scored.length > 0;
     const isComplete = scored.length >= 2;
