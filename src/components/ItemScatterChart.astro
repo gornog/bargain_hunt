@@ -23,8 +23,9 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
   <p class="chart-fallback">Interactive chart loading…</p>
 </div>
 
+<script is:inline src="/vendor/chart.umd.js"></script>
 <script>
-  import { Chart } from 'chart.js/auto';
+  const Chart = (window as any).Chart;
 
   const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
   const formatMoney = (value: number) => money.format(value);
@@ -36,7 +37,7 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
     const canvas = container.querySelector('canvas');
     const tooltip = container.querySelector<HTMLElement>('.chartjs-tooltip');
     const fallback = container.querySelector<HTMLElement>('.chart-fallback');
-    if (!canvas || !tooltip) return;
+    if (!canvas || !tooltip || !Chart) return;
     const points = JSON.parse(container.dataset.points || '[]');
     container.dataset.ready = 'true';
 

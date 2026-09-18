@@ -6,13 +6,14 @@ const payload = JSON.stringify({ bins, episodes, mode }).replace(/</g, '\\u003c'
   {mode !== 'episode' && <div class="stats-chart"><canvas aria-label="Team profit histogram" role="img"></canvas></div>}
   {mode !== 'histogram' && <div class="stats-chart"><canvas aria-label="Net result by episode" role="img"></canvas></div>}
 </div>
+<script is:inline src="/vendor/chart.umd.js"></script>
 <script>
-  import { Chart } from 'chart.js/auto';
+  const Chart = (window as any).Chart;
   const money = new Intl.NumberFormat('en-GB', { style:'currency', currency:'GBP', maximumFractionDigits:0 });
   const init = () => document.querySelectorAll<HTMLElement>('[data-stats-charts]').forEach((root) => {
     if (root.dataset.ready) return;
     const canvases = root.querySelectorAll('canvas');
-    if (canvases.length < 2) return;
+    if (!Chart || !canvases.length) return;
     const data = JSON.parse(root.dataset.statsCharts || '{}'); root.dataset.ready = 'true';
     let index = 0;
     if (data.mode !== 'episode') { new Chart(canvases[index++] as HTMLCanvasElement, { type:'bar', data:{ labels:data.bins.map((b:any)=>b.label), datasets:[{ data:data.bins.map((b:any)=>b.count), backgroundColor:['#ed2638','#ed2638','#2587d6','#2587d6','#ffd04a'], borderRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ x:{ticks:{color:'#b8c0c9'}}, y:{beginAtZero:true, ticks:{precision:0, color:'#b8c0c9', stepSize:1}, grid:{color:'rgba(244,241,232,.13)'}} } } }); }

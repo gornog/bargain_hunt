@@ -40,7 +40,7 @@ const scatterYRange = Math.max(...itemScatter.map((item: any) => Math.abs(item.e
 const scatterX = (profit: number) => 50 + (profit / scatterXRange) * 43;
 const scatterY = (estimateDelta: number) => 50 - (estimateDelta / scatterYRange) * 39;
 const houseStats = auctionHouses.map((house: any) => { const rows = details.filter((episode) => episode.auction_house === house.id); return { ...house, count: rows.length }; }).filter((house: any) => house.count);
-const auctioneerStats = experts.filter((person: any) => person.is_auctioneer).map((auctioneer: any) => { const episodes = details.filter((episode: any) => (episode.auctioneer_people || []).includes(auctioneer.id)); return { ...auctioneer, count: episodes.length }; }).filter((person: any) => person.count);
+const auctioneerStats = experts.filter((person: any) => person.is_auctioneer).map((auctioneer: any) => { const episodes = details.filter((episode: any) => (episode.auctioneers || []).includes(auctioneer.id)); return { ...auctioneer, count: episodes.length }; }).filter((person: any) => person.count);
 const profitBins = [
   { label: '≤ −£100', min: -Infinity, max: -100.01 },
   { label: '−£100 to −£1', min: -100, max: -0.01 },

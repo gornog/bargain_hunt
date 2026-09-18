@@ -16,8 +16,7 @@
       { "id": "date_watch_date", "name": "watch_date", "type": "date", "required": false },
       { "id": "relation3551881928", "name": "presenter", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
       { "id": "relation_episode_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false },
-      { "id": "relation_episode_auctioneers", "name": "auctioneers", "type": "relation", "collectionId": "pbc_auctioneers", "maxSelect": 3, "required": false },
-      { "id": "relation_episode_auctioneer_people", "name": "auctioneer_people", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 3, "required": false },
+      { "id": "relation_episode_auctioneers", "name": "auctioneers", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 3, "required": false },
       { "id": "text_bbc_pid", "name": "bbc_pid", "type": "text", "required": false },
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
       { "id": "url_watch", "name": "watch", "type": "url", "required": false },
@@ -92,21 +91,6 @@
       { "id": "text_auction_house_name", "name": "name", "type": "text", "required": true },
       { "id": "text_auction_house_url", "name": "website", "type": "url", "required": false },
       { "id": "text_auction_house_notes", "name": "notes", "type": "text", "required": false }
-    ]
-  },
-  {
-    "id": "pbc_auctioneers",
-    "name": "auctioneers",
-    "type": "base",
-    "listRule": "",
-    "viewRule": "",
-    "createRule": "",
-    "updateRule": "",
-    "deleteRule": "",
-    "fields": [
-      { "id": "text_auctioneer_name", "name": "name", "type": "text", "required": true },
-      { "id": "relation_auctioneer_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 20, "required": false },
-      { "id": "relation_auctioneer_expert", "name": "expert", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false }
     ]
   },
   {

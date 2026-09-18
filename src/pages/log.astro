@@ -21,7 +21,7 @@ const houseOptions = auctionHouses.map((house) => ({ label: house.name }));
 // promotes that expert/presenter by setting `is_auctioneer`.
 const auctioneerOptions = experts.map((person: any) => ({ label: person.name, houseIds: person.auction_houses || [], houseName: person.expand?.auction_houses?.map?.((house: any) => house.name).join(', ') || '' }));
 const selectedHouseId = selectedEpisode?.auction_house || '';
-const selectedAuctioneerIds = Array.isArray(selectedEpisode?.auctioneer_people) ? selectedEpisode.auctioneer_people : selectedEpisode?.expand?.auctioneer_people?.map((person: any) => person.id) || [];
+const selectedAuctioneerIds = Array.isArray(selectedEpisode?.auctioneers) ? selectedEpisode.auctioneers : selectedEpisode?.expand?.auctioneers?.map((person: any) => person.id) || [];
 const selectedAuctioneerNames = selectedAuctioneerIds.map((id: string) => experts.find((person: any) => person.id === id)?.name || '').filter(Boolean);
 const prioritisedAuctioneerOptions = [...auctioneerOptions].sort((a, b) => Number(b.houseIds.includes(selectedHouseId)) - Number(a.houseIds.includes(selectedHouseId)));
 
@@ -65,7 +65,7 @@ if (Astro.request.method === 'POST') {
       if (auctioneer) auctioneerIds.push(auctioneer.id);
     }
     const presenter = await findOrCreateExpert(String(form.get('presenter') || '').trim(), 'presenter');
-    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), synopsis: String(form.get('synopsis') || '').trim(), broadcast_date: String(form.get('air_date') || ''), presenter: presenter?.id || '', auction_house: house?.id || '', auctioneer_people: auctioneerIds };
+    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), synopsis: String(form.get('synopsis') || '').trim(), watch_date: String(form.get('air_date') || ''), presenter: presenter?.id || '', auction_house: house?.id || '', auctioneers: auctioneerIds };
     const catalogueId = String(form.get('catalogue_episode') || '').trim() || selectedEpisodeId || '';
     const matchingEpisode = details.find((candidate) => Number(candidate.series) === episodeData.series && Number(candidate.episod_number) === episodeData.episod_number && episodeData.episod_number > 0);
     const episode = catalogueId ? await pb.collection('episodes').update(catalogueId, episodeData) : matchingEpisode ? await pb.collection('episodes').update(matchingEpisode.id, episodeData) : await pb.collection('episodes').create(episodeData);
@@ -153,21 +153,4 @@ if (Astro.request.method === 'POST') {
   form?.addEventListener('keydown', (event) => { if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type !== 'submit') event.preventDefault(); });
   form?.addEventListener('submit', () => { localStorage.removeItem(draftKey); for (const color of ['red', 'blue']) { const mode = document.querySelector(`[name="${color}_result_mode"]`); const finalValue = document.querySelector(`[name="${color}_final_profit"]`); const name = document.querySelector(`[name="${color}_item_1_name"]`); const buy = document.querySelector(`[name="${color}_item_1_buy"]`); const sell = document.querySelector(`[name="${color}_item_1_sell"]`); if (mode?.value === 'final' && name && buy && sell && finalValue) { name.value = 'Final result'; buy.value = '0'; sell.value = finalValue.value; } } });
   restoreDraft(); updateTotals();
-</script>
-<script define:vars={{ catalogueDates: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, date: episode.broadcast_date || '' })) }}>
-  const dateField = document.querySelector('#date-input');
-  const dateFor = (id) => catalogueDates.find((entry) => entry.id === id)?.date?.slice(0, 10) || '';
-  const syncBroadcastDate = () => {
-    const selected = document.querySelector('#catalogue-select')?.value;
-    const exact = selected ? dateFor(selected) : catalogueDates.find((entry) => Number(entry.series) === Number(document.querySelector('#series-input')?.value) && Number(entry.number) === Number(document.querySelector('#episode-input')?.value))?.date?.slice(0, 10) || '';
-    if (dateField && exact) dateField.value = exact;
-  };
-  document.querySelector('#catalogue-select')?.addEventListener('change', syncBroadcastDate);
-  document.querySelector('#series-input')?.addEventListener('input', syncBroadcastDate);
-  document.querySelector('#episode-input')?.addEventListener('input', syncBroadcastDate);
-  syncBroadcastDate();
-</script>
-<script define:vars={{ selectedBroadcastDate: selectedEpisode?.broadcast_date?.slice(0, 10) || '' }}>
-  const dateField = document.querySelector('#date-input');
-  if (dateField && selectedBroadcastDate) dateField.value = selectedBroadcastDate;
 </script>
