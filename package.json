@@ -10,8 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "import:bbc": "node tools/import-bbc.mjs",
+    "import:bbc:nuclear": "node tools/import-bbc.mjs --nuclear",
     "pocketbase:lock": "node tools/lock-pocketbase.mjs",
-    "reconcile:bbc": "node tools/reconcile-bbc-episodes.mjs",
     "astro": "astro"
   },
   "dependencies": {

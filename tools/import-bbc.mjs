@@ -103,7 +103,10 @@ const parseEpisodes = (html, series) => {
   if (!programmeLink) return null;
   const titleText = clean(block.match(/class="[^"]*programme__title[^"]*"[^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
   const title = titleText.replace(/^Episode\s*\d+\s*:\s*/i, '').trim();
-  const episode = Number(title.match(/\s(\d{1,3})$/)?.[1] || 0);
+  // BBC renders the ordinal independently (for example "13/32"). Prefer it
+  // to a trailing number in a location title, which is not an episode ID.
+  const ordinal = clean(block.match(/\b(\d{1,3})\s*\/\s*\d{1,3}\b/)?.[0] || '');
+  const episode = Number(ordinal.match(/^\d+/)?.[0] || title.match(/\s(\d{1,3})$/)?.[1] || 0);
   const image = absolute(block.match(/(?:data-src|src)\s*=\s*["']([^"']+\.(?:jpg|jpeg|png|webp))["']/i)?.[1]);
   const synopsis = clean(block.match(/<p[^>]*class="[^"]*programme__synopsis[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '');
   const watchHref = block.match(/href=["']([^"']*\/iplayer\/episode\/[a-z0-9]+[^"']*)["']/i)?.[1] || '';
@@ -221,3 +224,27 @@ for (const profile of profileMap.values()) {
   if (profile.image && (refreshImages || !person.avatar)) { try { const blob = await fetchImage(profile.image); await pb.collection('experts').update(person.id, { avatar: new File([blob], `${person.id}.jpg`, { type: blob.type || 'image/jpeg' }) }); portraits += 1; } catch (error) { console.warn(`Could not save portrait for ${profile.name}: ${error.message}`); } }
 }
 console.log(`BBC sync complete: ${episodes.length} cards, ${created} created, ${updated} updated, ${synopses} synopses, ${images} episode images, ${peopleCreated} experts created, ${peopleUpdated} experts updated, ${portraits} portraits.`);
+
+// The normal sync above is intentionally non-destructive. Nuclear mode is a
+// separately opted-in catalogue reset using the fresh, verified BBC PID
+// manifest already fetched by this run.
+if (process.argv.includes('--nuclear')) {
+  const apply = process.argv.includes('--apply');
+  const includeLogged = process.argv.includes('--include-logged');
+  if (includeLogged && !apply) throw new Error('--include-logged is destructive and requires --apply.');
+  let removals = 0; let protectedCount = 0; let unknown = 0;
+  for (const row of existingEpisodes) {
+    if (!row.bbc_pid) continue;
+    const standard = episodesByPid.get(row.bbc_pid);
+    if (loggedEpisodeIds.has(row.id) && !includeLogged) {
+      protectedCount += 1;
+      continue;
+    }
+    if (standard) continue;
+    unknown += 1;
+    console.log(`REMOVE nonstandard PID ${row.bbc_pid}: ${row.id} S${row.series} E${row.episod_number} ${row.title || ''}`);
+    if (apply) { await pb.collection('episodes').delete(row.id); removals += 1; }
+  }
+  console.log(`${apply ? 'Applied' : 'Dry run'} nuclear pass: ${unknown} ${includeLogged ? '' : 'unlogged '}nonstandard BBC record(s), ${protectedCount} protected episode(s) with team data, ${removals} deletion(s).`);
+  if (!apply) console.log('Review this plan and back up pb_data before rerunning with --nuclear --apply.');
+}

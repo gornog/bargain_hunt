@@ -12,6 +12,24 @@ POCKETBASE_URL=http://localhost:8090 npm run import:bbc
 
 The importer only fills episode metadata (series, episode number, title, date and presenter). Team prices, team experts and results are intentionally left for the field-notes form, because that information is not supplied by the BBC guide.
 
+`npm run import:bbc` is the normal non-destructive sync. It adds new standard BBC episodes and refreshes only unprotected BBC metadata; it never deletes records or overwrites an existing synopsis. Every episode referenced by `team_performances` is protected from identity changes.
+
+For a one-off catalogue reset, use the same importer in nuclear mode. It starts with the normal sync, compares every BBC PID with the standard manifest fetched in that same run, repairs unprotected coordinates, and reports old extended/shortened/nonstandard BBC records. It does not delete until explicitly applied:
+
+```sh
+# Review only: no records are deleted.
+npm run import:bbc:nuclear
+
+# Take a PocketBase backup, check the report, then delete only unprotected
+# BBC records that are absent from the current standard manifest.
+npm run import:bbc:nuclear -- --apply
+
+# Future full reset only: permits removal of records with team data as well.
+npm run import:bbc:nuclear -- --apply --include-logged
+```
+
+`--include-logged` is intentionally dangerous and is rejected without `--apply`.
+
 For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://pocketbase:8090`.
 
 
