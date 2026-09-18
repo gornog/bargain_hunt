@@ -278,6 +278,19 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .episode-mark i { position:absolute; left:0; right:0; display:block; background:var(--blue); }
 .episode-mark.negative i { background:var(--red); }
 .episode-mark span { position:absolute; bottom:-23px; left:50%; color:#b8c0c9; font-size:8px; white-space:nowrap; transform:translateX(-50%) rotate(-55deg); transform-origin:center top; }
+.scatter-figure { margin:0 0 56px; }
+.scatter-wrap { position:relative; height:330px; margin:28px 12px 22px 38px; border-left:1px solid rgba(244,241,232,.36); border-bottom:1px solid rgba(244,241,232,.36); }
+.item-scatter { display:block; width:100%; height:100%; overflow:visible; }
+.scatter-axis { stroke:rgba(244,241,232,.38); stroke-width:.38; vector-effect:non-scaling-stroke; stroke-dasharray:3 3; }
+.scatter-point { fill:#4ad3a2; stroke:#111722; stroke-width:.4; vector-effect:non-scaling-stroke; cursor:help; }
+.scatter-point.loss { fill:#ff7770; }
+.scatter-point.below-estimate { stroke:#ffd04a; stroke-width:.8; }
+.scatter-point:hover { fill:#ffd04a; r:2.4; }
+.scatter-y-label,.scatter-x-label,.scatter-zero { position:absolute; color:#b8c0c9; font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+.scatter-y-label { left:-33px; top:50%; transform:translate(-50%,-50%) rotate(-90deg); white-space:nowrap; }
+.scatter-x-label { left:50%; bottom:-23px; transform:translateX(-50%); white-space:nowrap; }
+.scatter-zero-y { left:calc(50% + 6px); bottom:-18px; }
+.scatter-zero-x { left:-22px; top:calc(50% - 7px); }
 @media (max-width:700px) { .stats-figures { grid-template-columns:1fr; } .stat-figure { padding:18px; } .histogram { gap:5px; } .histogram-label { font-size:8px; overflow-wrap:anywhere; } }
 @media (max-width:700px) { .stats-extra,.stats-columns { grid-template-columns:1fr; } }
 @media (max-width:700px) { .episode-auction-details { grid-template-columns:1fr; grid-column:span 2; padding:16px; } }
@@ -395,6 +408,7 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .assigned-expert-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; flex:0 0 28px; }
 .auctioneer-entry .field-caption { display:block; min-height:19px; }
 .auctioneer-entry #auctioneer-list { margin-top:8px; }
+.auctioneer-entry .entity-combobox { margin-top:0; }
 @media (max-width:700px) {
   .team-card .item-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .team-card .item-options label:nth-child(4),.team-card .item-options label:nth-child(5),.team-card .item-options label:nth-child(6) { grid-column:span 2; }

@@ -40,6 +40,17 @@ BBC_REFRESH_IMAGES=true POCKETBASE_URL=http://localhost:8090 npm run import:bbc
 
 For the Proxmox deployment, run it from the frontend container with `POCKETBASE_URL=http://pocketbase:8090`.
 
+## Consolidate auctioneers into the people directory
+
+The schema keeps the legacy `auctioneers` collection during a safe, additive migration. Import the updated `pb_schema.json`, then preview the migration and apply it only after the reported counts look right:
+
+```sh
+POCKETBASE_URL=http://pocketbase:8090 POCKETBASE_SUPERUSER_TOKEN=... node tools/migrate-auctioneers-to-experts.mjs
+POCKETBASE_URL=http://pocketbase:8090 POCKETBASE_SUPERUSER_TOKEN=... node tools/migrate-auctioneers-to-experts.mjs --apply
+```
+
+It creates or reuses people by their legacy expert link or case-insensitive name, marks them as auctioneers, merges their auction houses, and copies each episode's links to `auctioneer_people`. It never deletes or modifies old links, so validate the migrated episode count (including the three logged episodes) before retiring the legacy collection.
+
 
 ## Production and private editing
 

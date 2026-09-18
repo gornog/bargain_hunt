@@ -17,6 +17,7 @@
       { "id": "relation3551881928", "name": "presenter", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
       { "id": "relation_episode_house", "name": "auction_house", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 1, "required": false },
       { "id": "relation_episode_auctioneers", "name": "auctioneers", "type": "relation", "collectionId": "pbc_auctioneers", "maxSelect": 3, "required": false },
+      { "id": "relation_episode_auctioneer_people", "name": "auctioneer_people", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 3, "required": false },
       { "id": "text_bbc_pid", "name": "bbc_pid", "type": "text", "required": false },
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
       { "id": "url_watch", "name": "watch", "type": "url", "required": false },
@@ -37,7 +38,9 @@
       { "id": "text1579384326", "name": "name", "type": "text", "required": true },
       { "id": "file376926767", "name": "avatar", "type": "file", "maxSelect": 1, "required": false },
       { "id": "bool3561818023", "name": "is_presenter", "type": "bool", "required": false },
-      { "id": "bool525475485", "name": "is_expert", "type": "bool", "required": false }
+      { "id": "bool525475485", "name": "is_expert", "type": "bool", "required": false },
+      { "id": "bool_is_auctioneer", "name": "is_auctioneer", "type": "bool", "required": false },
+      { "id": "relation_expert_auction_houses", "name": "auction_houses", "type": "relation", "collectionId": "pbc_auction_houses", "maxSelect": 20, "required": false }
     ]
   },
   {

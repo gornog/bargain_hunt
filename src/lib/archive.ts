@@ -39,13 +39,12 @@ export const fileUrl = (record: any, filename: string) => filename ? `/api/pocke
 export async function loadArchive() {
   const pb = await getPocketBase();
   const optional = async (collection: string, expand = '') => { try { return await pb.collection(collection).getFullList({ requestKey: null, ...(expand ? { expand } : {}), }); } catch { return []; } };
-  const [experts, episodes, performances, items, auctionHouses, auctioneers] = await Promise.all([
-    pb.collection('experts').getFullList({ sort: 'name' }),
-    pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter,auction_house,auctioneers' }),
+  const [experts, episodes, performances, items, auctionHouses] = await Promise.all([
+    pb.collection('experts').getFullList({ sort: 'name', expand: 'auction_houses' }),
+    pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter,auction_house,auctioneer_people' }),
     pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }),
     optional('items'),
-    optional('auction_houses'),
-    optional('auctioneers', 'auction_house,expert')
+    optional('auction_houses')
   ]);
   // Build the relations once. The original nested filters made each request scale
   // with the number of performances multiplied by the number of items/episodes.
@@ -75,5 +74,5 @@ export async function loadArchive() {
     const isComplete = scored.length >= 2;
     return { ...episode, teams, scored, isLogged, isComplete, status: isComplete ? 'logged' : isLogged ? 'in-progress' : 'unlogged', winner: scored[0]?.team_color, winnerProfit: scored[0]?.profit || 0 };
   });
-  return { experts, episodes, performances, items, auctionHouses, auctioneers, details };
+  return { experts, episodes, performances, items, auctionHouses, details };
 }

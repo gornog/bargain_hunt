@@ -1,7 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { loadArchive, teamProfit, money, hasTeamData, isGoldenGavel, isExpertGoldenGavel } from '../lib/archive';
-const { details, performances, experts, items, auctionHouses, auctioneers } = await loadArchive();
+const { details, performances, experts, items, auctionHouses } = await loadArchive();
 const logged = details.filter((episode) => episode.isLogged);
 const teams = performances.filter(hasTeamData).map((team: any) => ({ ...team, profit: teamProfit(team) }));
 const red = teams.filter((team: any) => team.team_color === 'Red');
@@ -18,10 +18,24 @@ const expertChartMax = Math.max(...expertStats.map((expert: any) => Math.abs(exp
 const episodeLabel = (team: any) => team?.expand?.episode?.title || 'Untitled episode';
 const wins = (colour: string) => details.filter((episode) => episode.winner === colour).length;
 const goldenTeams = teams.filter(isGoldenGavel);
+const hasNumber = (value: unknown) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
+const performanceById = new Map(performances.map((performance: any) => [performance.id, performance]));
 const itemRows = items.filter((item: any) => item.name).map((item: any) => ({ ...item, profit: Number(item.sell_price || 0) - Number(item.buy_price || 0) })).sort((a: any, b: any) => b.profit - a.profit);
+const worstLots = [...itemRows].sort((a: any, b: any) => a.profit - b.profit);
 const deviationRows = items.filter((item: any) => item.auctioneer_estimate).map((item: any) => ({ ...item, deviation: Number(item.sell_price || 0) - Number(item.auctioneer_estimate || 0) })).sort((a: any, b: any) => b.deviation - a.deviation);
+const itemScatter = items.filter((item: any) => item.name && hasNumber(item.buy_price) && hasNumber(item.sell_price) && hasNumber(item.auctioneer_estimate)).map((item: any) => {
+  const performance = performanceById.get(item.team_performance);
+  const episode = performance?.expand?.episode;
+  const profit = Number(item.sell_price) - Number(item.buy_price);
+  const estimateDelta = Number(item.sell_price) - Number(item.auctioneer_estimate);
+  return { ...item, profit, estimateDelta, episodeLabel: episode ? `S${episode.series || '?'} E${episode.episod_number || '?'} · ${episode.title || 'Untitled episode'}` : 'Episode not linked' };
+});
+const scatterXRange = Math.max(...itemScatter.map((item: any) => Math.abs(item.profit)), 1);
+const scatterYRange = Math.max(...itemScatter.map((item: any) => Math.abs(item.estimateDelta)), 1);
+const scatterX = (profit: number) => 50 + (profit / scatterXRange) * 43;
+const scatterY = (estimateDelta: number) => 50 - (estimateDelta / scatterYRange) * 39;
 const houseStats = auctionHouses.map((house: any) => { const rows = details.filter((episode) => episode.auction_house === house.id); return { ...house, count: rows.length }; }).filter((house: any) => house.count);
-const auctioneerStats = auctioneers.map((auctioneer: any) => { const rows = items.filter((item: any) => item.auctioneer?.includes?.(auctioneer.id)); const deviations = rows.filter((item: any) => item.auctioneer_estimate).map((item: any) => Number(item.sell_price || 0) - Number(item.auctioneer_estimate)); return { ...auctioneer, count: rows.length, deviation: deviations.length ? deviations.reduce((sum, n) => sum + n, 0) / deviations.length : 0 }; }).filter((person: any) => person.count);
+const auctioneerStats = experts.filter((person: any) => person.is_auctioneer).map((auctioneer: any) => { const episodes = details.filter((episode: any) => (episode.auctioneer_people || []).includes(auctioneer.id)); return { ...auctioneer, count: episodes.length }; }).filter((person: any) => person.count);
 const profitBins = [
   { label: '≤ −£100', min: -Infinity, max: -100.01 },
   { label: '−£100 to −£1', min: -100, max: -0.01 },
@@ -60,10 +74,23 @@ const episodeRange = Math.max(...episodeSeries.map((episode) => Math.abs(episode
           {!episodeSeries.length && <p class="empty">Log a team result to plot the archive over time.</p>}
         </figure>
       </section>
+      <figure class="stat-figure scatter-figure">
+        <figcaption><span class="eyebrow">lots · realised price versus estimate</span><h2>Item result distribution</h2><p>Each point is a recorded lot. Move over a point for the item and episode: horizontal position is sale price minus purchase price; vertical position is sale price minus the auctioneer estimate.</p></figcaption>
+        <div class="scatter-wrap">
+          <span class="scatter-y-label">Sale − estimate</span>
+          <svg class="item-scatter" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`Scatter plot of ${itemScatter.length} recorded lots; horizontal axis is sale minus purchase and vertical axis is sale minus estimate`}>
+            <line class="scatter-axis" x1="7" y1="50" x2="93" y2="50"></line><line class="scatter-axis" x1="50" y1="8" x2="50" y2="92"></line>
+            {itemScatter.map((item: any) => <circle class:list={['scatter-point', item.profit < 0 && 'loss', item.estimateDelta < 0 && 'below-estimate']} cx={scatterX(item.profit)} cy={scatterY(item.estimateDelta)} r="1.65"><title>{`${item.name} · ${item.episodeLabel}\nProfit: ${money.format(item.profit)}\nSale minus estimate: ${money.format(item.estimateDelta)}`}</title></circle>)}
+          </svg>
+          <span class="scatter-x-label">Sale − purchase</span>
+          <span class="scatter-zero scatter-zero-y">£0</span><span class="scatter-zero scatter-zero-x">£0</span>
+        </div>
+        {!itemScatter.length && <p class="empty">Add a buy price, sale price, and auctioneer estimate to plot a lot.</p>}
+      </figure>
       <div class="highlights"><article><span>Biggest win</span><strong>{biggestWin ? money.format(biggestWin.profit) : 'n/a'}</strong><p>{biggestWin ? `${biggestWin.team_color} team · ${episodeLabel(biggestWin)}` : 'Add sale prices to reveal this.'}</p></article><article><span>Biggest loss</span><strong>{biggestLoss ? money.format(biggestLoss.profit) : 'n/a'}</strong><p>{biggestLoss ? `${biggestLoss.team_color} team · ${episodeLabel(biggestLoss)}` : 'Add purchase prices to reveal this.'}</p></article></div>
       <h2 class="subheading">Expert performance</h2><div class="leaderboard">{expertStats.map((expert: any, index) => <div class="leader"><span class="rank">{String(index+1).padStart(2,'0')}</span><span class="expert-name">{expert.name}<small>{expert.count} recorded team{expert.count === 1 ? '' : 's'} · Team gavels {expert.teamGolden} · Expert gavels {expert.expertGolden}</small></span><span class="bar diverging-bar" aria-label={`${expert.name}: ${money.format(expert.profit)} `}><b aria-hidden="true"></b><i class:list={[expert.profit < 0 && 'negative']} style={divergingBar(expert.profit, expertChartMax)}></i></span><strong>{money.format(expert.profit)}</strong></div>)}{!expertStats.length && <p class="empty">No team data has been logged yet.</p>}</div>
       <section class="stats-extra"><article><span>Golden Gavels</span><strong>{goldenTeams.length}</strong><p>Teams with three profitable lots.</p></article><article><span>Items recorded</span><strong>{itemRows.length}</strong><p>Lots with a description.</p></article><article><span>Average estimate swing</span><strong>{deviationRows.length ? money.format(deviationRows.reduce((sum, item) => sum + item.deviation, 0) / deviationRows.length) : 'n/a'}</strong><p>Sale price versus top estimate.</p></article></section>
-      <div class="stats-columns"><section><h2 class="subheading">Best individual lots</h2><div class="stat-list">{itemRows.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{money.format(item.profit)}</span></div>)}{!itemRows.length && <p class="empty">No item records yet.</p>}</div></section><section><h2 class="subheading">Estimate deviation</h2><div class="stat-list">{deviationRows.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{item.deviation >= 0 ? '+' : ''}{money.format(item.deviation)}</span></div>)}{!deviationRows.length && <p class="empty">Add auctioneer estimates to see this.</p>}</div></section></div>
+      <div class="stats-columns"><section><h2 class="subheading">Worst individual lots</h2><div class="stat-list">{worstLots.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{money.format(item.profit)}</span></div>)}{!itemRows.length && <p class="empty">No item records yet.</p>}</div></section><section><h2 class="subheading">Estimate deviation</h2><div class="stat-list">{deviationRows.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{item.deviation >= 0 ? '+' : ''}{money.format(item.deviation)}</span></div>)}{!deviationRows.length && <p class="empty">Add auctioneer estimates to see this.</p>}</div></section></div>
     </main><footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Calculated live from PocketBase</span></footer>
   </div>
 </Layout>
