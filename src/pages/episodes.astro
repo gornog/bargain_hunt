@@ -38,17 +38,21 @@ const episodeLabel = (episode: any) => Number(episode.episod_number) > 0 ? `Epis
     if (refreshStatus) refreshStatus.textContent = 'Checking the BBC schedule…';
     try {
       const response = await fetch('/api/bbc-refresh', { method: 'POST' });
-      if (response.status === 401) throw new Error('Open Log and sign in before refreshing the BBC schedule.');
+      if (response.status === 401) throw new Error('I couldn\'t refresh now — open Log and sign in first.');
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.message || 'Refresh failed.');
-      if (result.created === 0 && result.updated === 0) {
+      if (!response.ok) throw new Error(`I couldn't refresh now — ${result.message || 'the BBC schedule did not respond.'}`);
+      if (result.outcome === 'too_soon') {
+        if (refreshStatus) refreshStatus.textContent = "I couldn't refresh now — the schedule was checked recently.";
+        return;
+      }
+      if (result.outcome === 'no_changes' || (result.created === 0 && result.updated === 0)) {
         if (refreshStatus) refreshStatus.textContent = "Absolute death on it, no more episode/I can't refresh now";
         return;
       }
       if (refreshStatus) refreshStatus.textContent = `${result.created} added · ${result.updated} broadcast time${result.updated === 1 ? '' : 's'} refreshed`;
       window.setTimeout(() => window.location.reload(), 900);
     } catch (error) {
-      if (refreshStatus) refreshStatus.textContent = error instanceof Error ? error.message : 'Refresh failed. Open Log first if the editor sign-in is required.';
+      if (refreshStatus) refreshStatus.textContent = error instanceof Error ? error.message : "I couldn't refresh now.";
     } finally {
       refreshButton.disabled = false;
       refreshButton.classList.remove('is-refreshing');
