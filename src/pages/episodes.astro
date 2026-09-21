@@ -37,7 +37,7 @@ const episodeLabel = (episode: any) => Number(episode.episod_number) > 0 ? `Epis
     refreshButton.classList.add('is-refreshing');
     if (refreshStatus) refreshStatus.textContent = 'Checking the BBC schedule…';
     try {
-      const response = await fetch('/api/bbc-refresh', { method: 'POST' });
+      const response = await fetch('/api/bbc-refresh?force=1', { method: 'POST' });
       if (response.status === 401) throw new Error('I couldn\'t refresh now — open Log and sign in first.');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(`I couldn't refresh now — ${result.message || 'the BBC schedule did not respond.'}`);

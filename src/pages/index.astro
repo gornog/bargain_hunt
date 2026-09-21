@@ -33,6 +33,13 @@ let tomorrowBroadcast: {
 } | null = null;
 let tomorrowRecordId: string | null = null;
 let upcomingBroadcasts: any[] = [];
+const upcomingFromPocketBase = details
+  .filter((episode) => {
+    const timestamp = Date.parse(episode.broadcast_date || "");
+    return Number.isFinite(timestamp) && timestamp >= Date.now();
+  })
+  .sort((a, b) => Date.parse(a.broadcast_date) - Date.parse(b.broadcast_date))
+  .map((episode) => ({ recordId: episode.id, title: episode.title, series: Number(episode.series), episode: Number(episode.episod_number), synopsis: episode.synopsis || "", broadcastDate: episode.broadcast_date, isToday: false, isTomorrow: false }));
 try {
   const refresh = await refreshUpcomingEpisodes();
   todayBroadcast = refresh.today;
@@ -45,22 +52,6 @@ try {
 } catch (error) {
   console.warn("BBC upcoming check failed.", error);
 }
-const upcomingFromPocketBase = details
-  .filter((episode) => {
-    const timestamp = Date.parse(episode.broadcast_date || "");
-    return Number.isFinite(timestamp) && timestamp >= Date.now();
-  })
-  .sort((a, b) => Date.parse(a.broadcast_date) - Date.parse(b.broadcast_date))
-  .map((episode) => ({
-    recordId: episode.id,
-    title: episode.title,
-    series: Number(episode.series),
-    episode: Number(episode.episod_number),
-    synopsis: episode.synopsis || "",
-    broadcastDate: episode.broadcast_date,
-    isToday: false,
-    isTomorrow: false,
-  }));
 const logged = details.filter((episode) => episode.isLogged);
 const complete = details.filter((episode) => episode.isComplete);
 const totalProfit = performances.reduce(
@@ -120,7 +111,7 @@ const broadcastTime = (episode: any) =>
         </div>
       </section>
       {
-        upcomingBroadcasts.length > 0 && (
+        (
           <section
             class="broadcast-schedule"
             aria-label="Upcoming BBC One episodes"
@@ -134,12 +125,10 @@ const broadcastTime = (episode: any) =>
                       <h2>Next on.</h2>
                     </>
                   </div>
-                  <a class="text-link" href="/episodes?sort=soon">
-                    View all upcoming <span>↗</span>
-                  </a>
+                  <div class="schedule-actions"><button id="home-bbc-refresh" class="schedule-refresh" type="button"><span aria-hidden="true">↻</span> Refresh schedule</button><output id="home-bbc-status" aria-live="polite"></output><a class="text-link" href="/episodes?sort=soon">View all upcoming <span>↗</span></a></div>
                 </>
               </div>
-              <div class="schedule-list">
+              {upcomingBroadcasts.length > 0 ? <div class="schedule-list">
                 {upcomingBroadcasts.slice(0, 8).map((episode: any) => {
                   const record = details.find(
                     (entry) => entry.id === episode.recordId,
@@ -182,7 +171,7 @@ const broadcastTime = (episode: any) =>
                     </a>
                   );
                 })}
-              </div>
+              </div> : <p class="empty">No upcoming broadcast is stored yet. Refresh the schedule.</p>}
             </>
           </section>
         )
@@ -261,3 +250,27 @@ const broadcastTime = (episode: any) =>
     <SiteFooter />
   </div>
 </Layout>
+<script>
+  const button = document.querySelector<HTMLButtonElement>('#home-bbc-refresh');
+  const status = document.querySelector<HTMLElement>('#home-bbc-status');
+  button?.addEventListener('click', async () => {
+    button.disabled = true;
+    button.classList.add('is-refreshing');
+    if (status) status.textContent = 'Checking the BBC schedule…';
+    try {
+      const response = await fetch('/api/bbc-refresh?force=1', { method: 'POST' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "I couldn't refresh now.");
+      if (result.outcome === 'no_changes') {
+        if (status) status.textContent = "Absolute death on it, no more episode/I can't refresh now";
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : "I couldn't refresh now.";
+    } finally {
+      button.disabled = false;
+      button.classList.remove('is-refreshing');
+    }
+  });
+</script>

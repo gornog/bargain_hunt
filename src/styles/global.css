@@ -447,6 +447,12 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .broadcast-card .text-link { display:inline-block; margin-top:13px; }
 .broadcast-schedule { margin:20px 0 54px; }
 .broadcast-schedule .section-heading { margin-bottom:14px; }
+.schedule-actions { display:flex; align-items:center; gap:8px; }
+.schedule-refresh { display:inline-flex; align-items:center; gap:5px; border:0; padding:6px 8px; background:transparent; color:#dce4ec; cursor:pointer; font:700 12px Arial,sans-serif; }
+.schedule-refresh span { color:#38bad0; font-size:20px; line-height:1; }
+.schedule-refresh.is-refreshing span { animation:refresh-spin .8s linear infinite; }
+.schedule-refresh:hover { color:#ffd04a; background:transparent; }
+.schedule-actions output { color:#d8e0e7; font-size:11px; }
 .schedule-list { background:#0e1014; border-top:1px solid rgba(244,241,232,.2); }
 .schedule-row { display:grid; grid-template-columns:112px 150px minmax(0,1fr) auto; align-items:center; gap:18px; padding:18px 14px; color:#fffdf5; border-bottom:1px solid rgba(244,241,232,.2); text-decoration:none; }
 .schedule-row:hover { background:rgba(38,135,214,.1); }

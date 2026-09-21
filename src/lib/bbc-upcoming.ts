@@ -49,9 +49,11 @@ const londonDate = () => {
 };
 
 const dateForCard = (card: string, text: string) => {
-  const datetime = card.match(/<time\b[^>]*\bdatetime=["']([^"']+)["']/i)?.[1];
+  const datetime = card.match(/(?:<time\b[^>]*\bdatetime|data-(?:start|broadcast)-date|data-start-date)=["']([^"']+)["']/i)?.[1] || card.match(/\b(20\d{2}-\d{2}-\d{2}(?:T[^\s"']+)?)\b/i)?.[1];
   if (datetime && !Number.isNaN(Date.parse(datetime))) return new Date(datetime).toISOString();
-  if (/\btoday\b/i.test(text)) return `${londonDate()}T12:00:00.000Z`;
+  const relativeDate = (days: number) => { const date = new Date(`${londonDate()}T12:00:00.000Z`); date.setUTCDate(date.getUTCDate() + days); return date.toISOString(); };
+  if (/\btoday\b/i.test(text)) return relativeDate(0);
+  if (/\btomorrow\b/i.test(text)) return relativeDate(1);
   return '';
 };
 
@@ -112,11 +114,9 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
       const saved = await pb.collection('episodes').create(payload);
       byPid.set(episode.pid, saved);
       byCoordinate.set(`${episode.series}|${episode.episode}`, saved);
-      upcomingWithRecords.push({ ...episode, recordId: saved.id });
       created += 1;
       if (episode.isToday) todayRecordId = saved.id;
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
-      upcomingWithRecords.push({ ...episode, recordId: saved.id });
     } else {
       const changed = Object.entries(payload).some(([key, value]) => String(record[key] ?? '') !== String(value));
       const saved = changed ? await pb.collection('episodes').update(record.id, payload) : record;
@@ -124,6 +124,8 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
       if (episode.isToday) todayRecordId = saved.id;
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
     }
+    const savedRecord = record || byCoordinate.get(`${episode.series}|${episode.episode}`);
+    if (savedRecord) upcomingWithRecords.push({ ...episode, recordId: savedRecord.id });
   }
 
   return { created, updated, today: upcoming.find((episode) => episode.isToday) || null, todayRecordId, tomorrow: upcoming.find((episode) => episode.isTomorrow) || null, tomorrowRecordId, upcoming: upcomingWithRecords, outcome: created || updated ? 'updated' : 'no_changes', checkedAt: new Date().toISOString() };
