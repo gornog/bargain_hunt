@@ -80,8 +80,8 @@ const dateForCard = (card: string, text: string) => {
 };
 
 const cardsFromPage = (html: string) => {
-  const starts = [...html.matchAll(/<(?:article|li|div)\b[^>]*class=["'][^"']*\bprogramme--episode\b[^"']*["'][^>]*>/gi)];
-  if (starts.length) return starts.map((match, index) => html.slice(match.index ?? 0, starts[index + 1]?.index ?? html.length));
+  const broadcasts = [...html.matchAll(/<li\b[^>]*>[\s\S]*?<\/li>/gi)].map((match) => match[0]).filter((item) => item.includes('broadcast-event__time') && item.includes('programme--episode'));
+  if (broadcasts.length) return broadcasts;
   return [...html.matchAll(/<a\b[^>]*href=["'](?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/[a-z0-9]+["'][^>]*>[\s\S]*?<\/a>/gi)].map((match) => html.slice(Math.max(0, (match.index ?? 0) - 2200), Math.min(html.length, (match.index ?? 0) + 3500)));
 };
 
