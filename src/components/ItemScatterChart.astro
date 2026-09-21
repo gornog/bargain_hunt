@@ -5,7 +5,11 @@ interface Point {
   profit: number;
   estimateDelta: number;
   teamColor?: string;
-  expertGolden?: boolean;
+  isExpertItem?: boolean;
+  isBonus?: boolean;
+  bonusAccepted?: boolean;
+  disqualified?: boolean;
+  challengeFailed?: boolean;
 }
 
 const { points = [] } = Astro.props as { points?: Point[] };
@@ -24,10 +28,11 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
 
   const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
   const formatMoney = (value: number) => money.format(value);
-  const pointColour = (point: any) => point.expertGolden ? '#ffd04a' : point.teamColor === 'Blue' ? '#2587d6' : '#ed2638';
+  const pointBorderColour = (point: any, fallback: string) => point.disqualified || point.challengeFailed ? '#fffdf5' : point.isBonus && !point.bonusAccepted ? '#ffd04a' : fallback;
+  const pointBorderDash = (point: any) => point.isBonus && !point.bonusAccepted ? [6, 4] : point.disqualified || point.challengeFailed ? [2, 3] : [];
   const tickMoney = (value: string | number) => formatMoney(Number(value));
 
-  const init = () => document.querySelectorAll<HTMLElement>('.chartjs-scatter').forEach((container) => {
+  const init = (container: HTMLElement) => {
     if (container.dataset.ready) return;
     const canvas = container.querySelector('canvas');
     const tooltip = container.querySelector<HTMLElement>('.chartjs-tooltip');
@@ -41,7 +46,8 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       if (!model.opacity) { tooltip.style.opacity = '0'; return; }
       const point = model.dataPoints?.[0]?.raw;
       if (!point) return;
-      tooltip.innerHTML = `<span class="tooltip-kicker">${point.expertGolden ? 'Expert golden gavel' : `${point.teamColor || 'Recorded'} team lot`}</span><strong>${point.name}</strong><span class="tooltip-episode">${point.episodeLabel}</span><dl><div><dt>Profit</dt><dd>${formatMoney(point.x)}</dd></div><div><dt>Vs estimate</dt><dd>${formatMoney(point.y)}</dd></div></dl>`;
+      const state = point.disqualified || point.challengeFailed ? 'Disqualified / failed challenge' : point.isBonus && !point.bonusAccepted ? 'Bonus declined' : point.isExpertItem ? 'Expert item' : `${point.teamColor || 'Recorded'} team item`;
+      tooltip.innerHTML = `<span class="tooltip-kicker">${state}</span><strong>${point.name}</strong><span class="tooltip-episode">${point.episodeLabel}</span><dl><div><dt>Profit</dt><dd>${formatMoney(point.x)}</dd></div><div><dt>Vs estimate</dt><dd>${formatMoney(point.y)}</dd></div></dl>`;
       const rect = canvas.getBoundingClientRect();
       const parent = container.getBoundingClientRect();
       const left = Math.min(Math.max(model.caretX + rect.left - parent.left + 12, 8), parent.width - tooltip.offsetWidth - 8);
@@ -51,30 +57,53 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       tooltip.style.opacity = '1';
     };
 
-    try { new Chart(canvas, {
+    const teamPoints = (team: string) => points.filter((point: any) => point.teamColor === team && !point.isExpertItem);
+    const expertPoints = points.filter((point: any) => point.isExpertItem);
+    const pointData = (rows: any[]) => rows.map((point: any) => ({ x: point.profit, y: point.estimateDelta, ...point }));
+    const teamDataset = (team: string, colour: string) => ({
+      label: `${team} candidate items`,
+      data: pointData(teamPoints(team)),
+      pointRadius: 5,
+      pointHoverRadius: 8,
+      pointBorderWidth: 2,
+      pointBorderColor: (context: any) => pointBorderColour(context.raw || {}, colour),
+      pointBorderDash: (context: any) => pointBorderDash(context.raw || {}),
+      pointBackgroundColor: colour,
+    });
+    const expertDataset = {
+      label: 'Expert items',
+      data: pointData(expertPoints),
+      pointRadius: 8,
+      pointHoverRadius: 10,
+      pointHitRadius: 0,
+      pointBorderWidth: 2,
+      pointBorderColor: '#ffd04a',
+      pointBackgroundColor: 'rgba(255,208,74,.08)',
+    };
+
+    try { const chart = new Chart(canvas, {
       type: 'scatter',
-      data: { datasets: [{
-        data: points.map((point: any) => ({ x: point.profit, y: point.estimateDelta, ...point })),
-        pointRadius: 4,
-        pointHoverRadius: 7,
-        pointBorderWidth: 2,
-        pointBorderColor: '#111722',
-        pointBackgroundColor: (context: any) => pointColour(context.raw || {}),
-      }] },
+      data: { datasets: [teamDataset('Red', '#ed2638'), teamDataset('Blue', '#2587d6'), expertDataset] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 760, easing: 'easeOutQuart' },
-        animations: { radius: { duration: 520, easing: 'easeOutBack', from: 0 } },
-        plugins: { legend: { display: false }, tooltip: { enabled: false, external: externalTooltip } },
+        animation: { duration: 1200, easing: 'easeOutElastic' },
+        animations: {
+          x: { from: 0, duration: 1200, easing: 'easeOutElastic' },
+          y: { from: (context: any) => context.chart.chartArea?.bottom ?? 0, duration: 1200, easing: 'easeOutElastic' },
+          radius: { from: 0, duration: 700, easing: 'easeOutBack' },
+        },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { color: '#d8dee7', usePointStyle: true, padding: 18 } },
+          tooltip: { enabled: false, external: externalTooltip },
+        },
         scales: {
-          x: { title: { display: true, text: 'Sale − purchase', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
-          y: { title: { display: true, text: 'Sale − auctioneer estimate', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
+          x: { title: { display: true, text: 'Sale - purchase', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
+          y: { title: { display: true, text: 'Sale - auctioneer estimate', color: '#d8dee7', font: { size: 12, weight: '600' } }, ticks: { color: '#c9d0d9', stepSize: 10, callback: tickMoney }, grid: { color: (context:any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.12)', lineWidth: (context:any) => context.tick.value === 0 ? 1.4 : 1 }, border:{display:false} },
         },
       },
     }); fallback?.remove(); } catch (error) { console.error('Unable to render item scatter chart', error); if (fallback) fallback.textContent = 'Interactive chart unavailable; the underlying lot data is still listed below.'; }
-  });
-  // Astro can place bundled component scripts before the browser has completed
-  // layout. Defer one frame so Chart.js can acquire a real canvas context.
-  requestAnimationFrame(init);
+  };
+  const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) { init(entry.target as HTMLElement); observer.unobserve(entry.target); } }), { threshold: 0.18 });
+  document.querySelectorAll<HTMLElement>('.chartjs-scatter').forEach((container) => observer.observe(container));
 </script>

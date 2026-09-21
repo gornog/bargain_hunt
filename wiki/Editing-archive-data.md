@@ -16,6 +16,8 @@ For normal item mode, a team result is total sales minus total purchases. A disq
 
 The **team Golden Gavel** is preserved once entered. The **expert Golden Gavel** is calculated when an expert is assigned, all three judged lots make a profit, the bonus is accepted, and the bonus makes a profit.
 
+The normalized `items` collection uses `slot = 1`, `2`, or `3` for team candidate items and `slot = 4` for the expert/bonus item. The bonus acceptance flag remains on the parent `team_performances` record and is read through the `team_performance` relation. Do not add a duplicated `bonus_accepted` field to `items`; that would allow the two records to disagree.
+
 ## Database collections
 
 PocketBase data is described by `pb_schema.json`. Import it with PocketBase's Admin UI when setting up a new empty database. Do not change field names casually: the logger and statistics use those names.
