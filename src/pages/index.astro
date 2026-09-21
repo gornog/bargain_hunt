@@ -1,37 +1,262 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import SiteHeader from '../components/SiteHeader.astro';
-import SiteFooter from '../components/SiteFooter.astro';
-import { loadArchive, money, teamProfit, fileUrl } from '../lib/archive';
-import { refreshUpcomingEpisodes } from '../lib/bbc-upcoming';
+import Layout from "../layouts/Layout.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import { loadArchive, money, teamProfit, fileUrl } from "../lib/archive";
+import { refreshUpcomingEpisodes } from "../lib/bbc-upcoming";
 
-let details: any[] = [], performances: any[] = [], experts: any[] = [], errorMessage = '';
-try { ({ details, performances, experts } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
-let todayBroadcast: { title: string; series: number; episode: number; synopsis: string; broadcastDate: string; } | null = null;
+let details: any[] = [],
+  performances: any[] = [],
+  experts: any[] = [],
+  errorMessage = "";
+try {
+  ({ details, performances, experts } = await loadArchive());
+} catch (error) {
+  errorMessage =
+    "PocketBase is unavailable. Check that the database container is running.";
+  console.error(error);
+}
+let todayBroadcast: {
+  title: string;
+  series: number;
+  episode: number;
+  synopsis: string;
+  broadcastDate: string;
+} | null = null;
 let todayRecordId: string | null = null;
-let tomorrowBroadcast: { title: string; series: number; episode: number; synopsis: string; broadcastDate: string; } | null = null;
+let tomorrowBroadcast: {
+  title: string;
+  series: number;
+  episode: number;
+  synopsis: string;
+  broadcastDate: string;
+} | null = null;
 let tomorrowRecordId: string | null = null;
 let upcomingBroadcasts: any[] = [];
-try { const refresh = await refreshUpcomingEpisodes(); todayBroadcast = refresh.today; todayRecordId = refresh.todayRecordId; tomorrowBroadcast = refresh.tomorrow; tomorrowRecordId = refresh.tomorrowRecordId; upcomingBroadcasts = refresh.upcoming || []; } catch (error) { console.warn('BBC upcoming check failed.', error); }
+try {
+  const refresh = await refreshUpcomingEpisodes();
+  todayBroadcast = refresh.today;
+  todayRecordId = refresh.todayRecordId;
+  tomorrowBroadcast = refresh.tomorrow;
+  tomorrowRecordId = refresh.tomorrowRecordId;
+  upcomingBroadcasts = refresh.upcoming?.length
+  ? refresh.upcoming
+  : upcomingFromPocketBase;
+} catch (error) {
+  console.warn("BBC upcoming check failed.", error);
+}
+const upcomingFromPocketBase = details
+  .filter((episode) => {
+    const timestamp = Date.parse(episode.broadcast_date || "");
+    return Number.isFinite(timestamp) && timestamp >= Date.now();
+  })
+  .sort((a, b) => Date.parse(a.broadcast_date) - Date.parse(b.broadcast_date))
+  .map((episode) => ({
+    recordId: episode.id,
+    title: episode.title,
+    series: Number(episode.series),
+    episode: Number(episode.episod_number),
+    synopsis: episode.synopsis || "",
+    broadcastDate: episode.broadcast_date,
+    isToday: false,
+    isTomorrow: false,
+  }));
 const logged = details.filter((episode) => episode.isLogged);
 const complete = details.filter((episode) => episode.isComplete);
-const totalProfit = performances.reduce((sum, team) => sum + teamProfit(team), 0);
+const totalProfit = performances.reduce(
+  (sum, team) => sum + teamProfit(team),
+  0,
+);
 const recent = logged.slice(0, 3);
 const fileUrlFor = (record: any, filename: string) => fileUrl(record, filename);
-const broadcastDay = (episode: any) => episode.isToday ? 'Today' : episode.isTomorrow ? 'Tomorrow' : episode.broadcastDate ? new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'Europe/London' }).format(new Date(episode.broadcastDate)) : 'Upcoming';
-const broadcastTime = (episode: any) => episode.broadcastDate ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }).format(new Date(episode.broadcastDate)) : 'Time TBC';
+const broadcastDay = (episode: any) =>
+  episode.isToday
+    ? "Today"
+    : episode.isTomorrow
+      ? "Tomorrow"
+      : episode.broadcastDate
+        ? new Intl.DateTimeFormat("en-GB", {
+            weekday: "long",
+            timeZone: "Europe/London",
+          }).format(new Date(episode.broadcastDate))
+        : "Upcoming";
+const broadcastTime = (episode: any) =>
+  episode.broadcastDate
+    ? new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/London",
+      }).format(new Date(episode.broadcastDate))
+    : "Time TBC";
 ---
+
 <Layout>
   <div class="shell landing-shell">
     <SiteHeader current="/" />
     <main>
-      <section class="landing-hero"><div><p class="eyebrow">Bargain Hunt results board</p><h1>Let's go<br /><i>bargain hunting!</i></h1><p class="landing-lead">Keep the scores from the fair, the auction room and the final result in one place.</p><a class="hero-link" href="/log">Enter a result <span>↗</span></a></div><div class="landing-aside"><span class="aside-number">{details.length}</span><span>episodes<br />on the board</span></div></section>
-      {upcomingBroadcasts.length > 0 && <section class="broadcast-schedule" aria-label="Upcoming BBC One episodes"><div class="section-heading"><div><p class="eyebrow">BBC One schedule</p><h2>Next on.</h2></div><a class="text-link" href="/episodes?sort=soon">View all upcoming <span>↗</span></a></div><div class="schedule-list">{upcomingBroadcasts.slice(0, 8).map((episode: any) => { const record = details.find((entry) => entry.id === episode.recordId); const loggedLabel = record?.isLogged ? 'Logged' : 'Ready to log'; return <a class="schedule-row" href={`/log?episode=${episode.recordId || ''}`}><div class="schedule-time"><strong>{broadcastDay(episode)}</strong><span>{broadcastTime(episode)}</span><small>BBC One</small></div><div class="schedule-image">{record?.image ? <img src={fileUrlFor(record, record.image)} alt="" /> : <span>BH</span>}</div><div class="schedule-copy"><h3>{episode.title}</h3><p>Series {episode.series} · Episode {episode.episode}</p><small>{episode.synopsis || 'Synopsis not available from the BBC guide.'}</small></div><span class={`schedule-status ${record?.isLogged ? 'is-logged' : ''}`}>{loggedLabel}</span></a>})}</div></section>}
+      <section class="landing-hero">
+        <div>
+          <p class="eyebrow">Bargain Hunt results board</p><h1>
+            Let's go<br /><i>bargain hunting!</i>
+          </h1><p class="landing-lead">
+            Keep the scores from the fair, the auction room and the final result
+            in one place.
+          </p><a class="hero-link" href="/log">Enter a result <span>↗</span></a>
+        </div><div class="landing-aside">
+          <span class="aside-number">{details.length}</span><span
+            >episodes<br />on the board</span>
+        </div>
+      </section>
+      <section class="landing-stats">
+        <div>
+          <span>Logged</span><strong>{logged.length}</strong><small
+            >episodes with results</small>
+        </div><div>
+          <span>Complete</span><strong>{complete.length}</strong><small
+            >both teams recorded</small>
+        </div><div>
+          <span>Tracked profit</span><strong>{money.format(totalProfit)}</strong
+          ><small>from entered results</small>
+        </div>
+      </section>
+      {
+        upcomingBroadcasts.length > 0 && (
+          <section
+            class="broadcast-schedule"
+            aria-label="Upcoming BBC One episodes"
+          >
+            <>
+              <div class="section-heading">
+                <>
+                  <div>
+                    <>
+                      <p class="eyebrow">BBC One schedule</p>
+                      <h2>Next on.</h2>
+                    </>
+                  </div>
+                  <a class="text-link" href="/episodes?sort=soon">
+                    View all upcoming <span>↗</span>
+                  </a>
+                </>
+              </div>
+              <div class="schedule-list">
+                {upcomingBroadcasts.slice(0, 8).map((episode: any) => {
+                  const record = details.find(
+                    (entry) => entry.id === episode.recordId,
+                  );
+                  const loggedLabel = record?.isLogged
+                    ? "Logged"
+                    : "Ready to log";
+                  return (
+                    <a
+                      class="schedule-row"
+                      href={`/log?episode=${episode.recordId || ""}`}
+                    >
+                      <div class="schedule-time">
+                        <strong>{broadcastDay(episode)}</strong>
+                        <span>{broadcastTime(episode)}</span>
+                        <small>BBC One</small>
+                      </div>
+                      <div class="schedule-image">
+                        {record?.image ? (
+                          <img src={fileUrlFor(record, record.image)} alt="" />
+                        ) : (
+                          <span>BH</span>
+                        )}
+                      </div>
+                      <div class="schedule-copy">
+                        <h3>{episode.title}</h3>
+                        <p>
+                          Series {episode.series} · Episode {episode.episode}
+                        </p>
+                        <small>
+                          {episode.synopsis ||
+                            "Synopsis not available from the BBC guide."}
+                        </small>
+                      </div>
+                      <span
+                        class={`schedule-status ${record?.isLogged ? "is-logged" : ""}`}
+                      >
+                        {loggedLabel}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </>
+          </section>
+        )
+      }
       {errorMessage && <div class="notice error">{errorMessage}</div>}
-      <section class="landing-stats"><div><span>Logged</span><strong>{logged.length}</strong><small>episodes with results</small></div><div><span>Complete</span><strong>{complete.length}</strong><small>both teams recorded</small></div><div><span>Tracked profit</span><strong>{money.format(totalProfit)}</strong><small>from entered results</small></div></section>
-      <section class="section-heading landing-heading"><div><p class="eyebrow">The results board</p><h2>Yes? Yes!</h2></div><p class="muted">Pick a section.</p></section>
-      <section class="route-grid" aria-label="Archive sections"><a class="route-card route-orange" href="/episodes"><span class="route-index">01</span><h3>Episode guide</h3><p>Browse every imported episode with its BBC image, synopsis and logging status.</p><span class="route-arrow">↗</span></a><a class="route-card route-blue" href="/log"><span class="route-index">02</span><h3>Log an episode</h3><p>Record team items, accepted bonuses, disqualified finds or a final profit figure.</p><span class="route-arrow">↗</span></a><a class="route-card route-dark" href="/experts"><span class="route-index">03</span><h3>Experts</h3><p>Meet the presenters and experts attached to the archive, with their portraits.</p><span class="route-arrow">↗</span></a><a class="route-card route-paper" href="/stats"><span class="route-index">04</span><h3>Statistics</h3><p>Compare Red and Blue, find the biggest wins and losses, and follow expert performance.</p><span class="route-arrow">↗</span></a></section>
-      <section class="landing-recent"><div class="section-heading"><div><p class="eyebrow">Latest records</p><h2>Recent logs.</h2></div><a class="text-link" href="/episodes?q=&series=0&status=logged">View logged episodes <span>↗</span></a></div><div class="recent-grid">{recent.map((episode) => <a href={`/log?episode=${episode.id}`} class="recent-card">{episode.image ? <img src={fileUrlFor(episode, episode.image)} alt="" /> : <div class="recent-placeholder">BH</div>}<div><span>S{String(episode.series || 0).padStart(2, '0')} E{String(episode.episod_number || 0).padStart(2, '0')}</span><h3>{episode.title || 'Untitled episode'}</h3><p class="recent-winner">{episode.isComplete ? `Winner: ${episode.winner} team` : 'In progress'}</p>{episode.scored.map((team: any) => <small class={`recent-team ${team.team_color?.toLowerCase()}`}>{team.team_color} team · {money.format(team.profit)}</small>)}</div></a>)}{!recent.length && <p class="empty">No logged episodes yet. Start with the episode guide.</p>}</div></section>
+      <section class="section-heading landing-heading">
+        <div><p class="eyebrow">The results board</p><h2>Yes? Yes!</h2></div><p
+          class="muted"
+        >
+          Pick a section.
+        </p>
+      </section>
+      <section class="route-grid" aria-label="Archive sections">
+        <a class="route-card route-orange" href="/episodes"
+          ><span class="route-index">01</span><h3>Episode guide</h3><p>
+            Browse every imported episode with its BBC image, synopsis and
+            logging status.
+          </p><span class="route-arrow">↗</span></a
+        ><a class="route-card route-blue" href="/log"
+          ><span class="route-index">02</span><h3>Log an episode</h3><p>
+            Record team items, accepted bonuses, disqualified finds or a final
+            profit figure.
+          </p><span class="route-arrow">↗</span></a
+        ><a class="route-card route-dark" href="/experts"
+          ><span class="route-index">03</span><h3>Experts</h3><p>
+            Meet the presenters and experts attached to the archive, with their
+            portraits.
+          </p><span class="route-arrow">↗</span></a
+        ><a class="route-card route-paper" href="/stats"
+          ><span class="route-index">04</span><h3>Statistics</h3><p>
+            Compare Red and Blue, find the biggest wins and losses, and follow
+            expert performance.
+          </p><span class="route-arrow">↗</span></a>
+      </section>
+      <section class="landing-recent">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Latest records</p><h2>Recent logs.</h2>
+          </div><a class="text-link" href="/episodes?q=&series=0&status=logged"
+            >View logged episodes <span>↗</span></a>
+        </div><div class="recent-grid">
+          {
+            recent.map((episode) => (
+              <a href={`/log?episode=${episode.id}`} class="recent-card">
+                {episode.image ? (
+                  <img src={fileUrlFor(episode, episode.image)} alt="" />
+                ) : (
+                  <div class="recent-placeholder">BH</div>
+                )}
+                <div>
+                  <p class="recent-winner">
+                    {episode.isComplete
+                      ? `Winner: ${episode.winner} team`
+                      : "In progress"}
+                  </p>
+                  {episode.scored.map((team: any) => (
+                    <small
+                      class={`recent-team ${team.team_color?.toLowerCase()}`}
+                    >
+                      {team.team_color} team · {money.format(team.profit)}
+                    </small>
+                  ))}
+                </div>
+              </a>
+            ))
+          }{
+            !recent.length && (
+              <p class="empty">
+                No logged episodes yet. Start with the episode guide.
+              </p>
+            )
+          }
+        </div>
+      </section>
     </main>
     <SiteFooter />
   </div>
