@@ -66,7 +66,8 @@ const dateFromLabel = (text: string) => {
 };
 
 const dateForCard = (card: string, text: string) => {
-  const metadataDate = card.match(/class=["'][^"']*broadcast-event__time[^"']*["'][^>]*\bcontent=["']([^"']+)["']/i)?.[1];
+  const timeTag = card.match(/<[^>]*class=["'][^"']*broadcast-event__time[^"']*["'][^>]*>/i)?.[0] || '';
+  const metadataDate = timeTag.match(/\bcontent=["']([^"']+)["']/i)?.[1];
   if (metadataDate && !Number.isNaN(Date.parse(metadataDate))) return new Date(metadataDate).toISOString();
   const datetime = card.match(/(?:<time\b[^>]*\bdatetime|data-(?:start|broadcast)-date|data-start-date)=["']([^"']+)["']/i)?.[1] || card.match(/\b(20\d{2}-\d{2}-\d{2}(?:T[^\s"']+)?)\b/i)?.[1];
   if (datetime && !Number.isNaN(Date.parse(datetime))) return new Date(datetime).toISOString();
@@ -110,7 +111,12 @@ const fetchUpcoming = async () => {
   if (!response.ok) throw new Error(`BBC upcoming episodes returned ${response.status}.`);
   const episodes = parseUpcoming(await response.text());
   if (!episodes.length) throw new Error('BBC upcoming episodes page returned no recognised episode cards.');
-  return episodes;
+  const earliestByPid = new Map<string, UpcomingEpisode>();
+  for (const episode of episodes) {
+    const existing = earliestByPid.get(episode.pid);
+    if (!existing || (!existing.broadcastDate && episode.broadcastDate) || (episode.broadcastDate && existing.broadcastDate && Date.parse(episode.broadcastDate) < Date.parse(existing.broadcastDate))) earliestByPid.set(episode.pid, episode);
+  }
+  return [...earliestByPid.values()].sort((a, b) => (Date.parse(a.broadcastDate) || Number.MAX_SAFE_INTEGER) - (Date.parse(b.broadcastDate) || Number.MAX_SAFE_INTEGER));
 };
 
 const runRefresh = async (): Promise<UpcomingRefresh> => {
