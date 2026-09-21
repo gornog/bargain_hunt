@@ -72,12 +72,10 @@ const profitBins = [
   { label: '£200 to £249', min: 200, max: 249.99 },
   { label: '£250+', min: 250, max: Infinity }
 ].map((bin) => ({ ...bin, count: teams.filter((team: any) => team.profit >= bin.min && team.profit <= bin.max).length }));
-const histogramMax = Math.max(...profitBins.map((bin) => bin.count), 1);
 const episodeSeries = details.filter((episode) => episode.isLogged).map((episode) => ({
   label: `S${episode.series || '?'} E${episode.episod_number || '?'}`,
   profit: episode.scored.reduce((sum: number, team: any) => sum + team.profit, 0)
 })).reverse();
-const episodeRange = Math.max(...episodeSeries.map((episode) => Math.abs(episode.profit)), 1);
 ---
 <Layout>
   <div class="shell">
