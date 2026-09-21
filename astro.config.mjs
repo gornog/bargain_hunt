@@ -4,7 +4,10 @@ import node from '@astrojs/node';
 
 export default defineConfig({
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    server: {
+      allowedHosts: ['bh.gornog.com']
+    }
   },
   output: 'server',
   adapter: node({
