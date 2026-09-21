@@ -1,7 +1,6 @@
 import PocketBase from 'pocketbase';
 
 export const pocketBaseUrl = import.meta.env.POCKETBASE_URL || 'http://pocketbase:8090';
-/** Creates a request-scoped, server-only PocketBase client. */
 export async function getPocketBase() {
   const client = new PocketBase(pocketBaseUrl);
   client.autoCancellation(false);
@@ -46,10 +45,6 @@ export async function loadArchive() {
     optional('items'),
     optional('auction_houses')
   ]);
-  // Build the relations once. The original nested filters made each request scale
-  // with the number of performances multiplied by the number of items/episodes.
-  // This is noticeable after importing a few series and is avoidable on every SSR
-  // page render.
   const itemsByPerformance = new Map<string, any[]>();
   for (const item of items) {
     const performanceId = item.team_performance || item.expand?.team_performance?.id;

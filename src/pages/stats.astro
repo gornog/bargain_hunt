@@ -1,9 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 import ItemScatterChart from '../components/ItemScatterChart.astro';
 import StatsCharts from '../components/StatsCharts.astro';
 import { loadArchive, teamProfit, money, hasTeamData, isGoldenGavel, isExpertGoldenGavel } from '../lib/archive';
-const { details, performances, experts, items, auctionHouses } = await loadArchive();
+let details: any[] = [], performances: any[] = [], experts: any[] = [], items: any[] = [];
+let errorMessage = '';
+try { ({ details, performances, experts, items } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
 const logged = details.filter((episode) => episode.isLogged);
 const teams = performances.filter(hasTeamData).map((team: any) => ({ ...team, profit: teamProfit(team) }));
 const red = teams.filter((team: any) => team.team_color === 'Red');
@@ -35,12 +39,6 @@ const itemScatter = items.filter((item: any) => item.name && hasNumber(item.buy_
   const estimateDelta = Number(item.sell_price) - Number(item.auctioneer_estimate);
   return { ...item, profit, estimateDelta, teamColor: performance?.team_color, expertGolden: Boolean(performance?.expert_golden_gavel), episodeLabel: episode ? `S${episode.series || '?'} E${episode.episod_number || '?'} · ${episode.title || 'Untitled episode'}` : 'Episode not linked' };
 });
-const scatterXRange = Math.max(...itemScatter.map((item: any) => Math.abs(item.profit)), 1);
-const scatterYRange = Math.max(...itemScatter.map((item: any) => Math.abs(item.estimateDelta)), 1);
-const scatterX = (profit: number) => 50 + (profit / scatterXRange) * 43;
-const scatterY = (estimateDelta: number) => 50 - (estimateDelta / scatterYRange) * 39;
-const houseStats = auctionHouses.map((house: any) => { const rows = details.filter((episode) => episode.auction_house === house.id); return { ...house, count: rows.length }; }).filter((house: any) => house.count);
-const auctioneerStats = experts.filter((person: any) => person.is_auctioneer).map((auctioneer: any) => { const episodes = details.filter((episode: any) => (episode.auctioneers || []).includes(auctioneer.id)); return { ...auctioneer, count: episodes.length }; }).filter((person: any) => person.count);
 const profitBins = [
   { label: '≤ −£100', min: -Infinity, max: -100.01 },
   { label: '−£100 to −£1', min: -100, max: -0.01 },
@@ -57,9 +55,10 @@ const episodeRange = Math.max(...episodeSeries.map((episode) => Math.abs(episode
 ---
 <Layout>
   <div class="shell">
-    <header class="topbar"><a class="brand" href="/"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a><nav aria-label="Main navigation"><a href="/">Overview</a><a href="/episodes">Episodes</a><a href="/log">Log</a><a href="/experts">Experts</a><a href="/stats">Stats</a></nav></header>
+    <SiteHeader current="/stats" />
     <main class="directory">
       <div class="page-intro"><p class="eyebrow">the score board</p><h1>Who made the <i>profit?</i></h1><p>Compare the Reds and Blues, check the best buys and see which experts have the eye for it.</p></div>
+      {errorMessage && <div class="notice error">{errorMessage}</div>}
       <section class="stats-grid stats-grid-three" aria-label="Summary statistics"><div class="stat"><span>Logged episodes</span><strong>{logged.length}</strong><small>of {details.length} catalogue records</small></div><div class="stat"><span>Red team record</span><strong>{wins('Red')} wins</strong><small>{money.format(redTotal)} net · {red.length} teams</small></div><div class="stat"><span>Blue team record</span><strong>{wins('Blue')} wins</strong><small>{money.format(blueTotal)} net · {blue.length} teams</small></div></section>
       <section class="chart-block" aria-labelledby="team-chart-title"><h2 id="team-chart-title">Team performance</h2><p class="chart-note">Net recorded result. The centre line is £0; bars extending left are losses.</p><div class="chart-row"><span>Red</span><div class="chart-track diverging-track" aria-label={`Red: ${money.format(redTotal)}`}><b aria-hidden="true"></b><i class:list={[redTotal < 0 && 'negative']} style={divergingBar(redTotal, chartMax)}></i></div><strong>{money.format(redTotal)}</strong></div><div class="chart-row blue"><span>Blue</span><div class="chart-track diverging-track" aria-label={`Blue: ${money.format(blueTotal)}`}><b aria-hidden="true"></b><i class:list={[blueTotal < 0 && 'negative']} style={divergingBar(blueTotal, chartMax)}></i></div><strong>{money.format(blueTotal)}</strong></div></section>
       <section class="stats-figures" aria-label="Detailed statistical visualisations">
@@ -75,6 +74,6 @@ const episodeRange = Math.max(...episodeSeries.map((episode) => Math.abs(episode
       <h2 class="subheading">Expert performance</h2><div class="leaderboard">{expertStats.map((expert: any, index) => <div class="leader"><span class="rank">{String(index+1).padStart(2,'0')}</span><span class="expert-name">{expert.name}<small>{expert.count} recorded team{expert.count === 1 ? '' : 's'} · Team gavels {expert.teamGolden} · Expert gavels {expert.expertGolden}</small></span><span class="bar diverging-bar" aria-label={`${expert.name}: ${money.format(expert.profit)} `}><b aria-hidden="true"></b><i class:list={[expert.profit < 0 && 'negative']} style={divergingBar(expert.profit, expertChartMax)}></i></span><strong>{money.format(expert.profit)}</strong></div>)}{!expertStats.length && <p class="empty">No team data has been logged yet.</p>}</div>
       <section class="stats-extra"><article><span>Golden Gavels</span><strong>{goldenTeams.length}</strong><p>Teams with three profitable lots.</p></article><article><span>Items recorded</span><strong>{itemRows.length}</strong><p>Lots with a description.</p></article><article><span>Average estimate swing</span><strong>{deviationRows.length ? money.format(deviationRows.reduce((sum, item) => sum + item.deviation, 0) / deviationRows.length) : 'n/a'}</strong><p>Sale price versus top estimate.</p></article></section>
       <div class="stats-columns"><section><h2 class="subheading">Best individual lots</h2><div class="stat-list">{bestLots.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{money.format(item.profit)}</span></div>)}{!itemRows.length && <p class="empty">No item records yet.</p>}</div></section><section><h2 class="subheading">Worst individual lots</h2><div class="stat-list">{worstLots.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{money.format(item.profit)}</span></div>)}{!itemRows.length && <p class="empty">No item records yet.</p>}</div></section><section><h2 class="subheading">Best against estimate</h2><div class="stat-list">{bestAuctionResults.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>+{money.format(item.deviation)}</span></div>)}{!deviationRows.length && <p class="empty">Add auctioneer estimates to see this.</p>}</div></section><section><h2 class="subheading">Worst against estimate</h2><div class="stat-list">{worstAuctionResults.slice(0, 10).map((item: any) => <div><strong>{item.name}</strong><span>{item.deviation >= 0 ? '+' : ''}{money.format(item.deviation)}</span></div>)}{!deviationRows.length && <p class="empty">Add auctioneer estimates to see this.</p>}</div></section></div>
-    </main><footer><span>BARGAIN HUNT / FIELD NOTES</span><span>Calculated live from PocketBase</span></footer>
+    </main><SiteFooter detail="Calculated live from PocketBase" />
   </div>
 </Layout>

@@ -1,9 +1,4 @@
 ---
-/**
- * Client-rendered scatter plot. The data is prepared during SSR and hydrated
- * into Chart.js in the browser, so PocketBase credentials never reach the
- * client and the page still has a useful heading when JS is unavailable.
- */
 interface Point {
   name: string;
   episodeLabel: string;

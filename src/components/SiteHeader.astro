@@ -1,0 +1,16 @@
+---
+const { current = '' } = Astro.props;
+const links = [
+  { href: '/', label: 'Overview' },
+  { href: '/episodes', label: 'Episodes' },
+  { href: '/log', label: 'Log' },
+  { href: '/experts', label: 'Experts' },
+  { href: '/stats', label: 'Stats' },
+];
+---
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Bargain Hunt home"><span class="brand-mark">BH</span><span>Bargain Hunt <em>field notes</em></span></a>
+  <nav aria-label="Main navigation">
+    {links.map((link) => <a href={link.href} aria-current={current === link.href ? 'page' : undefined}>{link.label}</a>)}
+  </nav>
+</header>

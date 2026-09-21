@@ -1,0 +1,34 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:0.28.4
+    restart: unless-stopped
+    volumes:
+      - pocketbase_data:/pb_data
+    expose:
+      - "8090"
+    networks:
+      - private
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      POCKETBASE_URL: http://pocketbase:8090
+      POCKETBASE_SUPERUSER_EMAIL: ${POCKETBASE_SUPERUSER_EMAIL}
+      POCKETBASE_SUPERUSER_PASSWORD: ${POCKETBASE_SUPERUSER_PASSWORD}
+      SITE_EDITOR_USERNAME: ${SITE_EDITOR_USERNAME:-editor}
+      SITE_EDITOR_PASSWORD: ${SITE_EDITOR_PASSWORD}
+    ports:
+      - "${APP_PORT:-4321}:4321"
+    depends_on:
+      - pocketbase
+    networks:
+      - private
+
+volumes:
+  pocketbase_data:
+
+networks:
+  private:

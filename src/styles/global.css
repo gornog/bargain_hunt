@@ -2,7 +2,6 @@
 .avatar { width:30px; height:30px; object-fit:cover; border-radius:50%; filter:grayscale(1); }
 .avatar.placeholder { display:grid; place-items:center; background:#dedfd8; color:var(--muted); font:16px Georgia,serif; }
 
-/* Shared archive pages, charts, and compact field controls. */
 .status, .hero-note { display:none !important; }
 .directory { padding:72px 0 100px; }
 .page-intro { max-width:720px; padding:30px 0 48px; }
@@ -120,7 +119,6 @@ h1,h2,h3,p { margin-top:0; } h1 { font-size:clamp(44px,6vw,78px); line-height:.9
 footer { border-top:1px solid var(--line); padding:24px 0; display:flex; justify-content:space-between; color:var(--muted); font-size:9px; letter-spacing:.13em; }
 @media (max-width:700px) { .shell { padding:0 18px; } .topbar { height:70px; } nav { display:none; } .status { font-size:9px; } .brand em { display:none; } .hero { padding:65px 0 55px; min-height:0; } .hero-note { display:none; } h1 { font-size:50px; } .stats-grid { grid-template-columns:1fr 1fr; margin-bottom:70px; } .stat { margin-right:12px; padding-right:10px; } .stat strong { font-size:22px; } .section-heading { align-items:start; flex-direction:column; gap:10px; } .episode-row { grid-template-columns:55px 1fr 85px; } .winner { font-size:9px; } .log-section { margin:0 -18px; padding:60px 18px; } .fields.four,.teams { grid-template-columns:1fr 1fr; } .wide { grid-column:span 2; } .teams { gap:12px; } .team-card { padding:20px 14px 16px; } .team-card legend { font-size:17px; } .item-head,.item-row { grid-template-columns:1.2fr .7fr .7fr; gap:5px; } .leader { grid-template-columns:32px 1fr 80px; gap:8px; } .bar { display:none; } .leader strong { font-size:12px; } footer { display:block; line-height:2; } }
 
-/* Bargain Hunt broadcast palette: loud, dark, red and blue, while keeping the pages fast. */
 :root { --ink:#f4f1e8; --muted:#b8c0c9; --line:rgba(244,241,232,.22); --paper:#111722; --orange:#ef302d; --red:#e21d2b; --blue:#1672b8; }
 body { background:#111722; color:var(--ink); background-image:radial-gradient(circle at 20% 10%,rgba(226,29,43,.18),transparent 28%),radial-gradient(circle at 85% 18%,rgba(22,114,184,.2),transparent 30%),linear-gradient(135deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.025) 50%,rgba(255,255,255,.025) 75%,transparent 75%); background-size:auto,auto,9px 9px; }
 .shell { max-width:1260px; }
@@ -195,7 +193,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .bonus-check { margin-left:62px; }
 @media (max-width:700px) { .teams { grid-template-columns:1fr; } .team-card { padding:22px 16px 20px; } .team-context { grid-template-columns:1fr; gap:18px; } .choice-buttons { flex-direction:column; } .items-board-head { grid-template-columns:1fr 70px 70px; padding-left:48px; } .item-row { grid-template-columns:42px 1fr 70px 70px; gap:7px; } .item-options { grid-template-columns:1fr 1fr; margin-left:49px; gap:9px; } .item-options label:nth-child(4),.item-options label:nth-child(5),.item-options label:nth-child(6) { grid-column:span 2; } .bonus-check { margin-left:49px; } }
 
-/* Results board: intentionally replaces the old dense two-column treatment. */
 .teams { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:28px; }
 .team-card { display:block; overflow:hidden; padding:0; border:0; border-radius:16px; background:#202c40; box-shadow:0 14px 35px rgba(0,0,0,.24); }
 .team-card::before { content:''; display:block; height:7px; background:var(--red); }
@@ -216,7 +213,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .team-card.final-mode .final-panel { margin-top:6px; }
 @media (max-width:700px) { .teams { grid-template-columns:1fr; gap:18px; } .team-card summary { padding:20px 18px 17px; } .team-heading { font-size:21px; } .team-summary-hint { display:none; } .team-board-body { padding:22px 18px 24px; } .team-card .items-board-head { margin-top:25px; padding-left:49px; } .team-card .item-options { margin-left:49px; } }
 
-/* Light auction-board surfaces with the programme's red/blue energy around them. */
 .episode-auction-details { display:grid; grid-template-columns:1fr 1fr; gap:18px; grid-column:span 2; margin-top:12px; padding:20px; background:#f7f0df; border:2px solid var(--red); border-radius:10px; }
 .episode-auction-details label,.episode-auction-details .field-caption { color:#182233; }
 .episode-auction-details input { color:#182233; border-color:#89909a; }
@@ -310,10 +306,8 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 @media (max-width:700px) { .stats-extra,.stats-columns { grid-template-columns:1fr; } }
 @media (max-width:700px) { .episode-auction-details { grid-template-columns:1fr; grid-column:span 2; padding:16px; } }
 
-/* Episode context fields are part of the form, not a separate card. */
 .episode-auction-details { display:contents; }
 
-/* Diverging score bars make the £0 baseline explicit: gains point right, losses left. */
 .diverging-track,.diverging-bar { position:relative; overflow:visible; }
 .diverging-track b,.diverging-bar b { position:absolute; z-index:1; top:-3px; bottom:-3px; left:50%; border-left:1px solid rgba(244,241,232,.72); }
 .diverging-track i,.diverging-bar i { position:absolute; z-index:2; top:0; bottom:0; min-width:0; background:var(--blue); }
@@ -359,7 +353,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .watch-link { display:inline-block; padding:8px 12px; color:#ffd04a; border:1px solid #ffd04a; font-size:13px; }
 .watch-link:hover { background:#ffd04a; color:#111722; }
 
-/* Form clarity: native datalist fields and switches must remain legible on the light board. */
 .episode-auction-details input,
 .episode-auction-details input:focus { background:#fff; color:#172238 !important; caret-color:#172238; border-color:#718096; }
 .episode-auction-details input::placeholder { color:#52647a; opacity:1; }
@@ -394,7 +387,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 
 @media (max-width:850px) { .teams { grid-template-columns:1fr; gap:18px; } }
 
-/* Catalogue cards stay comparable even when the BBC synopsis is long. */
 .catalogue-card { min-height:295px; height:295px; overflow:hidden; }
 .catalogue-image,.catalogue-image img { height:100%; }
 .catalogue-copy { min-width:0; height:100%; overflow:hidden; display:flex; flex-direction:column; }
@@ -404,7 +396,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .episode-actions { margin-top:auto; }
 @media (max-width:700px) { .catalogue-card { min-height:250px; height:250px; } }
 
-/* Keep the three judgement toggles together; the dependent fields flow below. */
 .team-card .item-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .team-card .item-options label:nth-child(4),
 .team-card .item-options label:nth-child(5),
@@ -419,7 +410,6 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .expert-golden-stats { display:grid; gap:7px; margin-top:18px; color:#9a5b00; font:700 10px Arial,sans-serif; letter-spacing:.06em; text-transform:uppercase; }
 .expert-golden-stats span { display:flex; align-items:center; gap:6px; }
 
-/* Final layout polish */
 .route-grid .route-dark { background:linear-gradient(135deg,#ed1c2e,#8b315f); border:0; color:#fff; }
 .route-grid .route-paper { background:linear-gradient(135deg,#176fb5,#123b73); border:0; color:#fff; }
 .recent-team + .recent-team { display:block; margin-top:5px; padding-top:5px; border-top:1px solid rgba(244,241,232,.28); }
