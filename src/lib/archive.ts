@@ -34,12 +34,25 @@ export const isGoldenGavel = (team: any) => {
 export const isExpertGoldenGavel = (team: any) => Boolean(team?.expert_golden_gavel);
 export const hasTeamData = (team: any) => Boolean((team?.result_mode === 'final' && (team?.final_profit !== null && team?.final_profit !== undefined && team?.final_profit !== '')) || team?.expert || team?.bonus_accepted || [1, 2, 3].some((n) => team?.[`item_${n}_name`] || value(team?.[`item_${n}_buy`]) || value(team?.[`item_${n}_sell`])) || team?.bonus_name || value(team?.bonus_buy) || value(team?.bonus_sell));
 export const fileUrl = (record: any, filename: string) => filename ? `/api/pocketbase-file?collection=${encodeURIComponent(record.collectionId)}&record=${encodeURIComponent(record.id)}&file=${encodeURIComponent(filename)}` : '';
+export const auctionHouseIds = (person: any) => {
+  const plural = Array.isArray(person?.auction_houses) ? person.auction_houses : [];
+  const singular = person?.auction_house ? [person.auction_house] : [];
+  return [...new Set([...plural, ...singular].filter(Boolean))];
+};
+export const auctionHouseNames = (person: any) => {
+  const expanded = [person?.expand?.auction_houses, person?.expand?.auction_house].flat().filter(Boolean);
+  return expanded.map((house: any) => house.name).filter(Boolean).join(', ');
+};
 
 export async function loadArchive() {
   const pb = await getPocketBase();
   const optional = async (collection: string, expand = '') => { try { return await pb.collection(collection).getFullList({ requestKey: null, ...(expand ? { expand } : {}), }); } catch { return []; } };
+  const loadExperts = async () => {
+    try { return await pb.collection('experts').getFullList({ sort: 'name', expand: 'auction_houses,auction_house' }); }
+    catch { return pb.collection('experts').getFullList({ sort: 'name' }); }
+  };
   const [experts, episodes, performances, items, auctionHouses] = await Promise.all([
-    pb.collection('experts').getFullList({ sort: 'name', expand: 'auction_houses' }),
+    loadExperts(),
     pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter,auction_house,auctioneers' }),
     pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }),
     optional('items'),

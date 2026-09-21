@@ -371,7 +371,7 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .synopsis-editor { display:block; margin-top:18px; }
 .synopsis-editor textarea { display:block; width:100%; min-height:108px; margin-top:8px; padding:10px; resize:vertical; background:#1b2637; border:1px solid rgba(244,241,232,.35); color:#fff; font:15px/1.45 Arial,sans-serif; }
 .synopsis-editor textarea:focus { outline:1px solid #ffd04a; border-color:#ffd04a; }
-.synopsis-editor { position:relative; min-height:180px; max-width:calc(100% - 200px); margin:-180px 0 18px 200px; padding:0 0 34px; align-self:start; }
+.synopsis-editor { position:relative; min-height:0; max-width:none; margin:18px 0 0; padding:0 0 34px; align-self:stretch; }
 .synopsis-heading { position:absolute; right:0; bottom:0; font-size:0; line-height:0; }
 .synopsis-display { max-height:138px; overflow-y:auto; margin:0; padding:0 14px 0 0; background:transparent; color:#d2d8df; font:15px/1.55 Arial,sans-serif; letter-spacing:normal; text-transform:none; white-space:normal; }
 .synopsis-editor .text-button { position:absolute; right:0; bottom:0; }
@@ -426,21 +426,26 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .auctioneer-entry #auctioneer-list { margin-top:8px; }
 .auctioneer-entry .entity-combobox input { margin-top:0; }
 .auctioneer-entry .entity-combobox { margin-top:0; }
-.today-broadcast { display:flex; align-items:end; justify-content:space-between; gap:28px; margin:20px 0 54px; padding:26px 30px; color:#fffdf5; background:linear-gradient(115deg,#bb1728,#16263d 58%,#166cac); border:1px solid rgba(255,255,255,.26); }
-.today-broadcast .eyebrow { color:#ffd04a; }
-.today-broadcast h2 { margin:5px 0 7px; font-size:30px; }
-.today-broadcast p,.today-broadcast small { display:block; margin:0; color:#e4e8ed; }
-.today-broadcast small { max-width:720px; margin-top:8px; line-height:1.45; }
-.episode-sync { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 22px; padding:16px 18px; color:#182033; background:#f4f1e8; border:1px solid #d9d1bd; }
-.episode-sync strong { display:block; }
-.episode-sync p { margin:4px 0 0; color:#596577; font-size:12px; }
-.episode-sync div:last-child { display:flex; align-items:center; gap:12px; }
-.episode-sync output { min-width:120px; color:#596577; font-size:12px; }
+.broadcast-strip { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:20px 0 54px; }
+.broadcast-card { min-width:0; padding:18px 20px 17px; color:#fffdf5; background:rgba(22,38,61,.78); border:1px solid rgba(255,255,255,.22); }
+.broadcast-card-heading { display:flex; align-items:center; gap:8px; }
+.broadcast-card .eyebrow { margin:0; color:#ffd04a; }
+.broadcast-icon { color:#38bad0; font-size:20px; line-height:1; }
+.broadcast-card h2 { margin:8px 0 5px; font-size:25px; }
+.broadcast-meta,.broadcast-card small { display:block; margin:0; color:#d8e0e7; }
+.broadcast-card small { margin-top:8px; line-height:1.45; }
+.broadcast-card .text-link { display:inline-block; margin-top:13px; }
+.episode-tools { display:flex; align-items:center; gap:12px; min-height:30px; margin:0 0 16px; }
+.bbc-refresh-button { display:inline-flex; align-items:center; gap:7px; border:0; padding:2px 0; background:transparent; color:#dce4ec; cursor:pointer; font:700 12px Arial,sans-serif; }
+.bbc-refresh-button:hover { color:#ffd04a; }
+.bbc-refresh-button:disabled { cursor:wait; opacity:.75; }
+.refresh-icon { display:inline-block; color:#38bad0; font-size:21px; line-height:1; }
+.bbc-refresh-button.is-refreshing .refresh-icon { animation:refresh-spin .8s linear infinite; }
+.episode-tools output { color:#d8e0e7; font-size:12px; }
+@keyframes refresh-spin { to { transform:rotate(360deg); } }
 @media (max-width:700px) {
   .team-card .item-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .team-card .item-options label:nth-child(4),.team-card .item-options label:nth-child(5),.team-card .item-options label:nth-child(6) { grid-column:span 2; }
   .golden-gavel-badge { margin-left:0; }
-  .today-broadcast,.episode-sync { align-items:stretch; flex-direction:column; padding:20px; }
-  .today-broadcast h2 { font-size:25px; }
-  .episode-sync div:last-child { align-items:flex-start; flex-direction:column; }
+  .broadcast-strip { grid-template-columns:1fr; }
 }

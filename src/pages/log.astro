@@ -5,7 +5,7 @@ import SiteFooter from '../components/SiteFooter.astro';
 import Team from '../components/Team.astro';
 import PersonCombobox from '../components/PersonCombobox.astro';
 import EntityCombobox from '../components/EntityCombobox.astro';
-import { getPocketBase, loadArchive, value, fileUrl, isGoldenGavel, isExpertGoldenGavel } from '../lib/archive';
+import { getPocketBase, loadArchive, value, fileUrl, auctionHouseIds, auctionHouseNames, isGoldenGavel, isExpertGoldenGavel } from '../lib/archive';
 
 let experts: any[] = [], details: any[] = [], auctionHouses: any[] = [], errorMessage = '';
 try { ({ experts, details, auctionHouses } = await loadArchive()); } catch (error) { errorMessage = 'PocketBase is unavailable. Check that the database container is running.'; console.error(error); }
@@ -19,7 +19,8 @@ const blueGoldenGavel = isGoldenGavel(selectedEpisode?.teams?.find((team: any) =
 const redExpertGoldenGavel = isExpertGoldenGavel(selectedEpisode?.teams?.find((team: any) => team.team_color === 'Red'));
 const blueExpertGoldenGavel = isExpertGoldenGavel(selectedEpisode?.teams?.find((team: any) => team.team_color === 'Blue'));
 const houseOptions = auctionHouses.map((house) => ({ label: house.name }));
-const auctioneerOptions = experts.map((person: any) => ({ label: person.name, houseIds: person.auction_houses || [], houseName: person.expand?.auction_houses?.map?.((house: any) => house.name).join(', ') || '' }));
+const expertHouseField = experts.some((person: any) => Object.prototype.hasOwnProperty.call(person, 'auction_house')) ? 'auction_house' : 'auction_houses';
+const auctioneerOptions = experts.map((person: any) => ({ label: person.name, houseIds: auctionHouseIds(person), houseName: auctionHouseNames(person) }));
 const selectedHouseId = selectedEpisode?.auction_house || '';
 const selectedAuctioneerIds = Array.isArray(selectedEpisode?.auctioneers) ? selectedEpisode.auctioneers : selectedEpisode?.expand?.auctioneers?.map((person: any) => person.id) || [];
 const selectedAuctioneerNames = selectedAuctioneerIds.map((id: string) => experts.find((person: any) => person.id === id)?.name || '').filter(Boolean);
@@ -34,14 +35,16 @@ if (Astro.request.method === 'POST') {
       const existing = experts.find((expert) => expert.name.toLowerCase() === name.toLowerCase());
       const flags = role === 'presenter' ? { is_presenter: true } : role === 'expert' ? { is_expert: true } : { is_auctioneer: true };
       if (existing) {
-        const houses = Array.isArray(existing.auction_houses) ? existing.auction_houses : [];
-        const updates = { ...flags, ...(auctionHouseId && !houses.includes(auctionHouseId) ? { auction_houses: [...houses, auctionHouseId] } : {}) };
-        if (Object.entries(updates).every(([field, value]) => existing[field] === value)) return existing;
+        const houses = auctionHouseIds(existing);
+        const houseUpdate = auctionHouseId && !houses.includes(auctionHouseId) ? { [expertHouseField]: expertHouseField === 'auction_house' ? auctionHouseId : [...houses, auctionHouseId] } : {};
+        const updates = { ...flags, ...houseUpdate };
+        if (!Object.keys(houseUpdate).length && Object.entries(flags).every(([field, value]) => existing[field] === value)) return existing;
         const saved = await pb.collection('experts').update(existing.id, updates);
         Object.assign(existing, saved);
         return saved;
       }
-      const created = await pb.collection('experts').create({ name, ...flags, ...(auctionHouseId ? { auction_houses: [auctionHouseId] } : {}) });
+      const houseValue = auctionHouseId ? { [expertHouseField]: expertHouseField === 'auction_house' ? auctionHouseId : [auctionHouseId] } : {};
+      const created = await pb.collection('experts').create({ name, ...flags, ...houseValue });
       experts.push(created);
       return created;
     };

@@ -3,7 +3,7 @@
 ## Everyday workflow
 
 1. Open **Episodes**, find the programme, and choose **Prefill logger**.
-2. On **Log**, check series, episode number, title, presenter, auction house, and auctioneer names.
+2. On **Log**, check series, episode number, title, presenter, auction house, and auctioneer names. When an auction house is selected, matching auctioneers are offered first; the rest of the directory remains available.
 3. Enter an assigned expert for each team. A new name is created as a person automatically.
 4. Choose **Item prices** to record three lots plus an optional bonus, or **Final profit only** when item prices are unavailable.
 5. Record purchase price, sale price, top estimate, and the appropriate flags. Save the episode.
@@ -38,6 +38,8 @@ The import and maintenance scripts require PocketBase superuser credentials for 
 
 ## Refresh upcoming episodes from the site
 
-Open **Episodes**, sign in through **Log** if prompted, then choose **Refresh from BBC**. This reads the official BBC upcoming-episodes schedule and only creates missing records or refreshes broadcast times and BBC links for existing matches. It does not run the full historical importer, replace logged episode identity, or download images.
+Open **Episodes**, sign in through **Log** if prompted, then choose the small circular-arrows **Refresh BBC episodes** control. This reads the official BBC upcoming-episodes schedule and only creates missing records or refreshes broadcast times and BBC links for existing matches. It does not run the full historical importer, replace logged episode identity, or download images. The control is deliberately rate-limited; when there is nothing new (or the schedule was checked recently), the page displays the seller-style message: “Absolute death on it, no more episode/I can't refresh now”.
 
-Opening the home page also checks the BBC schedule automatically at most once every 12 hours while the application is running. When BBC One has an episode today, the home page displays a **Showing today** card with a direct link to its logger.
+Opening the home page also checks the BBC schedule automatically at most once every 12 hours while the application is running. When BBC One has an episode today or tomorrow, the home page displays compact **Showing today** and **Showing tomorrow** cards. If the episode is already in PocketBase, each card links directly to its logger; otherwise it links to the episode guide.
+
+On **Episodes**, use the **Showing soon** filter to sort records by their BBC broadcast time. Records without a broadcast time stay after dated records.
