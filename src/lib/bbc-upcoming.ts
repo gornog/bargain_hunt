@@ -48,9 +48,30 @@ const londonDate = () => {
   return `${value('year')}-${value('month')}-${value('day')}`;
 };
 
+const dateFromLabel = (text: string) => {
+  const today = new Date(`${londonDate()}T12:00:00.000Z`);
+  if (/\btomorrow\b/i.test(text)) { today.setUTCDate(today.getUTCDate() + 1); return today.toISOString(); }
+  if (/\btoday\b/i.test(text)) return today.toISOString();
+  const match = text.match(/\b(today|tomorrow|next\s+)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
+  if (!match) return '';
+  const prefix = (match[1] || '').toLowerCase().trim();
+  const day = match[2].toLowerCase();
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const target = days.indexOf(day);
+  let delta = (target - today.getUTCDay() + 7) % 7;
+  if (prefix === 'tomorrow') delta = 1;
+  if (prefix === 'next') delta = delta === 0 ? 7 : delta + 7;
+  today.setUTCDate(today.getUTCDate() + delta);
+  return today.toISOString();
+};
+
 const dateForCard = (card: string, text: string) => {
+  const metadataDate = card.match(/class=["'][^"']*broadcast-event__time[^"']*["'][^>]*\bcontent=["']([^"']+)["']/i)?.[1];
+  if (metadataDate && !Number.isNaN(Date.parse(metadataDate))) return new Date(metadataDate).toISOString();
   const datetime = card.match(/(?:<time\b[^>]*\bdatetime|data-(?:start|broadcast)-date|data-start-date)=["']([^"']+)["']/i)?.[1] || card.match(/\b(20\d{2}-\d{2}-\d{2}(?:T[^\s"']+)?)\b/i)?.[1];
   if (datetime && !Number.isNaN(Date.parse(datetime))) return new Date(datetime).toISOString();
+  const labelledDate = dateFromLabel(text);
+  if (labelledDate) return labelledDate;
   const relativeDate = (days: number) => { const date = new Date(`${londonDate()}T12:00:00.000Z`); date.setUTCDate(date.getUTCDate() + days); return date.toISOString(); };
   if (/\btoday\b/i.test(text)) return relativeDate(0);
   if (/\btomorrow\b/i.test(text)) return relativeDate(1);
@@ -75,9 +96,10 @@ const parseUpcoming = (html: string): UpcomingEpisode[] => {
     const series = Number(text.match(/\bSeries\s+(\d+)\b/i)?.[1] || 0);
     const episode = Number(rawTitle.match(/\s(\d{1,3})$/)?.[1] || text.match(/\bEpisode\s+(\d{1,3})\b/i)?.[1] || 0);
     const title = /^Episode\s+\d+$/i.test(rawTitle) ? rawTitle : rawTitle.replace(/\s+\d{1,3}$/, '').trim();
-    const synopsis = clean(card.match(/class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|span|div)>/i)?.[1] || '');
+    const synopsisMarkup = card.match(/<p\b[^>]*class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1] || card.match(/class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|span|div)>/i)?.[1] || '';
+    const synopsis = clean(synopsisMarkup).replace(/\s*\(R\)\s*$/i, '').trim();
     const broadcastDate = dateForCard(card, text);
-    if (!pid || !url || !title || !series || !episode || seen.has(pid)) return [];
+    if (!pid || !url || !title || !series || seen.has(pid)) return [];
     seen.add(pid);
     return [{ pid, url, series, episode, title, synopsis, broadcastDate, isToday: /\btoday\b/i.test(text), isTomorrow: /\btomorrow\b/i.test(text) }];
   });
@@ -103,7 +125,7 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
   const upcomingWithRecords: UpcomingEpisode[] = [];
 
   for (const episode of upcoming) {
-    const record = byPid.get(episode.pid) || byCoordinate.get(`${episode.series}|${episode.episode}`);
+    const record = byPid.get(episode.pid) || (episode.episode > 0 ? byCoordinate.get(`${episode.series}|${episode.episode}`) : undefined);
     const payload: Record<string, string | number> = { bbc_pid: episode.pid, bbc_url: episode.url };
     if (episode.broadcastDate) payload.broadcast_date = episode.broadcastDate;
     if (!record) {
@@ -113,7 +135,7 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
       if (episode.synopsis) payload.synopsis = episode.synopsis;
       const saved = await pb.collection('episodes').create(payload);
       byPid.set(episode.pid, saved);
-      byCoordinate.set(`${episode.series}|${episode.episode}`, saved);
+      if (episode.episode > 0) byCoordinate.set(`${episode.series}|${episode.episode}`, saved);
       created += 1;
       if (episode.isToday) todayRecordId = saved.id;
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
@@ -124,7 +146,7 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
       if (episode.isToday) todayRecordId = saved.id;
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
     }
-    const savedRecord = record || byCoordinate.get(`${episode.series}|${episode.episode}`);
+    const savedRecord = record || (episode.episode > 0 ? byCoordinate.get(`${episode.series}|${episode.episode}`) : undefined);
     if (savedRecord) upcomingWithRecords.push({ ...episode, recordId: savedRecord.id });
   }
 
