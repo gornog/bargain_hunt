@@ -92,7 +92,7 @@ const episodeSeries = details.filter((episode) => episode.isLogged).map((episode
       <figure class="stat-figure scatter-figure">
         <figcaption><span class="eyebrow">lots · realised price versus estimate</span><h2>Item result distribution</h2><p>Each point is a recorded lot. Move over a point for the item and episode: horizontal position is sale price minus purchase price; vertical position is sale price minus the auctioneer estimate.</p></figcaption>
         <ItemScatterChart points={itemScatter} />
-        <p class="chart-key">Gold ring: an assigned expert's item. Dashed gold border: bonus declined. Dotted light border: disqualified or failed challenge. Click the legend to show or hide a series.</p>
+        <p class="chart-key">Gold: expert/bonus item. Dashed gold border: bonus declined. Dotted light border: disqualified or failed challenge. Click the legend to show or hide a series.</p>
         {!itemScatter.length && <p class="empty">Add a buy price, sale price, and auctioneer estimate to plot a lot.</p>}
       </figure>
       <div class="highlights"><article><span>Biggest win</span><strong>{biggestWin ? money.format(biggestWin.profit) : 'n/a'}</strong><p>{biggestWin ? `${biggestWin.team_color} team · ${episodeLabel(biggestWin)}` : 'Add sale prices to reveal this.'}</p></article><article><span>Biggest loss</span><strong>{biggestLoss ? money.format(biggestLoss.profit) : 'n/a'}</strong><p>{biggestLoss ? `${biggestLoss.team_color} team · ${episodeLabel(biggestLoss)}` : 'Add purchase prices to reveal this.'}</p></article></div>

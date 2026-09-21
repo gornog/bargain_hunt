@@ -35,3 +35,9 @@ PocketBase data is described by `pb_schema.json`. Import it with PocketBase's Ad
 Run `npm run import:bbc` with `POCKETBASE_URL` set. It adds or refreshes BBC catalogue information but deliberately preserves logged results and existing curated synopses. Read the command's output before using the separately opted-in `import:bbc:nuclear` command.
 
 The import and maintenance scripts require PocketBase superuser credentials for writes. Use environment variables or a secrets manager, never a committed `.env` file.
+
+## Refresh upcoming episodes from the site
+
+Open **Episodes**, sign in through **Log** if prompted, then choose **Refresh from BBC**. This reads the official BBC upcoming-episodes schedule and only creates missing records or refreshes broadcast times and BBC links for existing matches. It does not run the full historical importer, replace logged episode identity, or download images.
+
+Opening the home page also checks the BBC schedule automatically at most once every 12 hours while the application is running. When BBC One has an episode today, the home page displays a **Showing today** card with a direct link to its logger.
