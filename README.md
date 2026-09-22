@@ -2,6 +2,32 @@
 
 A private Astro and PocketBase archive for recording Bargain Hunt episodes, team lots, final results, and expert performance.
 
+## Screenshots
+
+The repository includes a static visual tour in [`docs/screenshots/`](docs/screenshots/). It shows the application without requiring a live server or PocketBase connection.
+
+### Overview
+
+![Bargain Hunt overview](docs/screenshots/home.png)
+
+### Episode guide
+
+![Episode guide](docs/screenshots/episodes.png)
+
+### Episode logger
+
+![Episode logger](docs/screenshots/log.png)
+
+### People directory
+
+![Presenters, experts and auctioneers](docs/screenshots/experts.png)
+
+### Statistics
+
+![Statistics dashboard](docs/screenshots/stats.png)
+
+![Expert performance and item lists](docs/screenshots/stats-expert-performance.png)
+
 ## Maintainer documentation
 
 The full human-maintainer guide is in [`wiki/`](wiki/Home.md). It is written as GitHub Wiki pages and covers:
