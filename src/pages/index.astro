@@ -58,7 +58,7 @@ const totalProfit = performances.reduce(
   (sum, team) => sum + teamProfit(team),
   0,
 );
-const recent = logged.slice(0, 3);
+const recent = logged.slice(1, 3);
 const fileUrlFor = (record: any, filename: string) => fileUrl(record, filename);
 const broadcastDay = (episode: any) =>
   episode.isToday
