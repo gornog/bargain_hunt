@@ -10,8 +10,14 @@ export default defineConfig({
     }
   },
   security: {
-    allowedDomains: ['bh.gornog.com'],
-    checkOrigin: false,
+    allowedDomains: [
+      {
+        hostname: 'bh.gornog.com',
+        protocol: 'https',
+        port: '443',
+      },
+    ],
+    checkOrigin: true,
   },
   output: 'server',
   adapter: node({
