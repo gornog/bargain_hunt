@@ -55,7 +55,7 @@ export async function loadArchive() {
     loadExperts(),
     pb.collection('episodes').getFullList({ sort: '-series,-episod_number,-broadcast_date', expand: 'presenter,auction_house,auctioneers' }),
     pb.collection('team_performances').getFullList({ expand: 'expert,episode', sort: '-created' }),
-    optional('items', 'auctioneer'),
+    optional('items'),
     optional('auction_houses')
   ]);
   const itemsByPerformance = new Map<string, any[]>();
