@@ -34,6 +34,8 @@ PocketBase data is described by `pb_schema.json`. Import it with PocketBase's Ad
 | `items` | Normalized lot records used for lot and estimate statistics |
 | `auction_houses` | Auction-house directory |
 
+Auctioneers are not a separate collection. They are records in `experts` with `is_auctioneer = true`; the same person may also be a presenter or an expert. Do not recreate an `auctioneers` collection when restoring or configuring PocketBase. Local PocketBase exports and backups belong in the ignored `backups/` directory, never in Git.
+
 ## Importing BBC metadata
 
 Run `npm run import:bbc` with `POCKETBASE_URL` set. It adds or refreshes BBC catalogue information but deliberately preserves logged results and existing curated synopses. Read the command's output before using the separately opted-in `import:bbc:nuclear` command.

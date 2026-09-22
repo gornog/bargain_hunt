@@ -17,6 +17,9 @@ pnpm-debug.log*
 .env
 .env.production
 
+# local PocketBase backups (never commit live data)
+backups/
+
 # macOS-specific files
 .DS_Store
 
