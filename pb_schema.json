@@ -21,6 +21,7 @@
       { "id": "text_bbc_url", "name": "bbc_url", "type": "url", "required": false },
       { "id": "url_watch", "name": "watch", "type": "url", "required": false },
       { "id": "text_synopsis", "name": "synopsis", "type": "text", "required": false },
+      { "id": "bool_is_clipshow", "name": "is_clipshow", "type": "bool", "required": false },
       { "id": "file_episode_image", "name": "image", "type": "file", "maxSelect": 1, "required": false }
     ]
   },

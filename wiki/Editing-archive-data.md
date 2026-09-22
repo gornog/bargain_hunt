@@ -18,6 +18,10 @@ The **team Golden Gavel** is preserved once entered. The **expert Golden Gavel**
 
 The normalized `items` collection uses `slot = 1`, `2`, or `3` for team candidate items and `slot = 4` for the expert/bonus item. The bonus acceptance flag remains on the parent `team_performances` record and is read through the `team_performance` relation. Do not add a duplicated `bonus_accepted` field to `items`; that would allow the two records to disagree.
 
+### Compilation and clip-show episodes
+
+Some BBC entries called “Special” are newly filmed location/event episodes and should be logged normally. Others are compilation episodes made from previously broadcast footage. On the logger, tick **Compilation / clip show** when the programme is a recycled compilation. This stores `episodes.is_clipshow = true`, keeps the episode title, date, presenter, synopsis and image, and hides the auction-house, auctioneer and team-result fields. No empty team-performance records are created.
+
 ## Database collections
 
 PocketBase data is described by `pb_schema.json`. Import it with PocketBase's Admin UI when setting up a new empty database. Do not change field names casually: the logger and statistics use those names.

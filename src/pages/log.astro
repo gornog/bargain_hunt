@@ -57,23 +57,24 @@ if (Astro.request.method === 'POST') {
         try { matches = await pb.collection(collection).getFullList({ filter: `name = "${name.replaceAll('"', '\\"')}"`, requestKey: null }); } catch { /* create below when listing is restricted */ }
         return matches[0] || await pb.collection(collection).create({ name, ...data });
      };
+     const isClipshow = form.get('is_clipshow') === 'on';
      const houseName = String(form.get('auction_house_name') || '').trim();
-      const house = houseName ? await findOrCreateNamed('auction_houses', houseName) : null;
+      const house = !isClipshow && houseName ? await findOrCreateNamed('auction_houses', houseName) : null;
       if (house && !auctionHouses.some((entry) => entry.id === house.id)) auctionHouses.push(house);
     const auctioneerIds: string[] = [];
-    for (const rawName of form.getAll('auctioneer_name')) {
+    for (const rawName of isClipshow ? [] : form.getAll('auctioneer_name')) {
       const name = String(rawName).trim();
       if (!name) continue;
       const auctioneer = await findOrCreateExpert(name, 'auctioneer', house?.id || '');
       if (auctioneer) auctioneerIds.push(auctioneer.id);
     }
     const presenter = await findOrCreateExpert(String(form.get('presenter') || '').trim(), 'presenter');
-    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), synopsis: String(form.get('synopsis') || '').trim(), watch_date: String(form.get('air_date') || ''), presenter: presenter?.id || '', auction_house: house?.id || '', auctioneers: auctioneerIds };
+    const episodeData = { series: value(form.get('series')), episod_number: value(form.get('episode_number')), title: String(form.get('title') || '').trim(), synopsis: String(form.get('synopsis') || '').trim(), watch_date: String(form.get('air_date') || ''), presenter: presenter?.id || '', auction_house: house?.id || '', auctioneers: auctioneerIds, is_clipshow: isClipshow };
     const catalogueId = String(form.get('catalogue_episode') || '').trim() || selectedEpisodeId || '';
     const matchingEpisode = details.find((candidate) => Number(candidate.series) === episodeData.series && Number(candidate.episod_number) === episodeData.episod_number && episodeData.episod_number > 0);
     const episode = catalogueId ? await pb.collection('episodes').update(catalogueId, episodeData) : matchingEpisode ? await pb.collection('episodes').update(matchingEpisode.id, episodeData) : await pb.collection('episodes').create(episodeData);
     const existingPerformances = await pb.collection('team_performances').getFullList({ filter: `episode = "${episode.id}"`, requestKey: null });
-    for (const color of ['red', 'blue']) {
+    if (!isClipshow) for (const color of ['red', 'blue']) {
       const teamColor = color === 'red' ? 'Red' : 'Blue';
       const assignedExpert = await findOrCreateExpert(String(form.get(`${color}_expert`) || '').trim(), 'expert');
       const existing = existingPerformances.find((performance) => performance.team_color === teamColor);
@@ -123,6 +124,7 @@ if (Astro.request.method === 'POST') {
 }
 ---
 <Layout>
+  <meta id="clipshow-state" data-value={selectedEpisode?.is_clipshow ? 'true' : 'false'} />
   <div class="shell">
     <SiteHeader current="/log" />
     <main class="directory log-page">
@@ -134,8 +136,12 @@ if (Astro.request.method === 'POST') {
     <SiteFooter detail="Episode log" />
   </div>
 </Layout>
-<script define:vars={{ catalogue: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, title: episode.title || '', synopsis: episode.synopsis || '', date: episode.watch_date || '', presenter: episode.expand?.presenter?.name || '', image: episode.image ? fileUrl(episode, episode.image) : '', watch: episode.watch || '' })), expertPortraits: experts.map((expert) => ({ name: expert.name, avatar: expert.avatar ? fileUrl(expert, expert.avatar) : '' })), selectedId: selectedEpisodeId, prioritisedAuctioneerOptions, selectedAuctioneerNames }}>
+<script define:vars={{ catalogue: details.map((episode) => ({ id: episode.id, series: episode.series, number: episode.episod_number, title: episode.title || '', synopsis: episode.synopsis || '', date: episode.watch_date || '', presenter: episode.expand?.presenter?.name || '', image: episode.image ? fileUrl(episode, episode.image) : '', watch: episode.watch || '', isClipshow: Boolean(episode.is_clipshow) })), expertPortraits: experts.map((expert) => ({ name: expert.name, avatar: expert.avatar ? fileUrl(expert, expert.avatar) : '' })), selectedId: selectedEpisodeId, prioritisedAuctioneerOptions, selectedAuctioneerNames }}>
   const mediaLayout = document.querySelector('.episode-media'); const synopsisEditor = document.querySelector('#synopsis-editor'); if (mediaLayout && synopsisEditor) mediaLayout.append(synopsisEditor);
+  const clipshowToggle = document.createElement('label'); clipshowToggle.id = 'clipshow-toggle'; clipshowToggle.className = 'clipshow-toggle'; clipshowToggle.innerHTML = `<input type="checkbox" name="is_clipshow" ${document.querySelector('#clipshow-state')?.dataset.value === 'true' ? 'checked' : ''} /> Compilation / clip show`; mediaLayout?.append(clipshowToggle);
+  const applyClipshowMode = (enabled) => { document.querySelector('form.log-form')?.classList.toggle('is-clipshow', enabled); };
+  const clipshowInput = clipshowToggle.querySelector('input'); clipshowInput?.addEventListener('change', () => applyClipshowMode(clipshowInput.checked)); applyClipshowMode(Boolean(clipshowInput?.checked));
+  document.querySelector('#episode-input')?.setAttribute('min', '0');
   const form = document.querySelector('form.log-form'); const seriesInput = document.querySelector('#series-input'); const episodeInput = document.querySelector('#episode-input'); const titleInput = document.querySelector('#title-input'); const dateInput = document.querySelector('#date-input'); const presenterInput = document.querySelector('#presenter-input'); const picker = document.querySelector('#catalogue-picker'); const select = document.querySelector('#catalogue-select'); const draftKey = `bargain-hunt-log:${selectedId || 'new'}`;
   const auctioneerList = document.querySelector('#auctioneer-list'); const addAuctioneer = document.querySelector('.add-auctioneer');
   const makeAuctioneer = (count, initial = '') => { const wrapper = document.createElement('div'); wrapper.className = 'entity-combobox'; const input = document.createElement('input'); input.id = `auctioneer-input-${count}`; input.name = 'auctioneer_name'; input.value = initial; input.placeholder = 'Start typing an auctioneer'; input.autocomplete = 'off'; input.setAttribute('list', `${input.id}-options`); const data = document.createElement('datalist'); data.id = `${input.id}-options`; prioritisedAuctioneerOptions.forEach((option) => { const item = document.createElement('option'); item.value = option.label || option.name; data.append(item); }); wrapper.append(input, data); return wrapper; };
@@ -144,7 +150,7 @@ if (Astro.request.method === 'POST') {
   const synopsisEdit = document.querySelector('#synopsis-edit'); const synopsisInput = document.querySelector('#synopsis-input'); const synopsisDisplay = document.querySelector('#synopsis-display'); synopsisEdit?.addEventListener('click', () => { if (!synopsisInput) return; synopsisInput.hidden = false; synopsisDisplay?.classList.add('is-hidden'); synopsisEdit.classList.add('is-hidden'); synopsisInput.focus(); });
   const refreshExpertPortrait = (input) => { const wrapper = input?.closest('.assigned-expert-field'); if (!wrapper) return; const selected = expertPortraits.find((expert) => expert.name.trim().toLowerCase() === input.value.trim().toLowerCase()); let avatar = wrapper.querySelector('.assigned-expert-avatar'); if (!selected?.avatar) { avatar?.remove(); return; } if (!avatar) { avatar = document.createElement('img'); avatar.className = 'assigned-expert-avatar'; avatar.alt = ''; wrapper.prepend(avatar); } avatar.src = selected.avatar; };
   document.querySelectorAll('input[id$="-expert"]').forEach((input) => { input.addEventListener('input', () => refreshExpertPortrait(input)); refreshExpertPortrait(input); });
-  const fill = (episode) => { if (!episode) return; titleInput.value = episode.title; dateInput.value = episode.date ? episode.date.slice(0, 10) : ''; presenterInput.value = episode.presenter; preview(episode.image, episode.title, episode.synopsis, episode.watch); };
+  const fill = (episode) => { if (!episode) return; titleInput.value = episode.title; dateInput.value = episode.date ? episode.date.slice(0, 10) : ''; presenterInput.value = episode.presenter; preview(episode.image, episode.title, episode.synopsis, episode.watch); if (clipshowInput) { clipshowInput.checked = Boolean(episode.isClipshow); applyClipshowMode(clipshowInput.checked); } };
   const refreshMatch = () => { const s = Number(seriesInput.value); const n = Number(episodeInput.value); const exact = catalogue.find((episode) => Number(episode.series) === s && Number(episode.number) === n && n > 0); if (exact) { select.value = exact.id; picker.classList.add('is-hidden'); fill(exact); return; } const candidates = [...select.options].filter((option) => option.value && Number(option.dataset.series) === s); picker.classList.toggle('is-hidden', !s || !n || Boolean(exact) || !candidates.length); if (select.value && !candidates.some((option) => option.value === select.value)) select.value = ''; };
   seriesInput?.addEventListener('input', refreshMatch); episodeInput?.addEventListener('input', refreshMatch); select?.addEventListener('change', () => { const selected = catalogue.find((episode) => episode.id === select.value); if (selected) fill(selected); });
   if (selectedId) refreshMatch();

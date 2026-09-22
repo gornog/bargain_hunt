@@ -385,6 +385,10 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .synopsis-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; font-size:12px; line-height:1.2; color:#dce4ec; text-transform:uppercase; letter-spacing:.12em; }
 .synopsis-display { max-height:138px; overflow-y:auto; margin:0; padding:0 14px 0 0; background:transparent; color:#d2d8df; font:15px/1.55 Arial,sans-serif; letter-spacing:normal; text-transform:none; white-space:normal; }
 .synopsis-editor .text-button { position:absolute; right:0; bottom:0; }
+.clipshow-toggle { display:flex; align-items:center; gap:8px; grid-column:1; margin-top:12px; color:#ffd04a; font-size:12px; font-weight:700; cursor:pointer; }
+.clipshow-toggle input { width:18px; height:18px; accent-color:#ffd04a; }
+.log-form.is-clipshow .teams { display:none; }
+.log-form.is-clipshow .auctioneer-entry,.log-form.is-clipshow label:has(#auction-house-input) { display:none; }
 .synopsis-heading .text-button { position:static; font-size:11px; line-height:1.2; text-transform:none; letter-spacing:normal; }
 .text-button { border:1px solid #718096; background:transparent; color:#176fb5; padding:5px 9px; cursor:pointer; font:700 11px Arial,sans-serif; }
 .text-button.is-hidden,.synopsis-display.is-hidden { display:none; }
