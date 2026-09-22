@@ -11,7 +11,7 @@ export default defineConfig({
   },
   security: {
     allowedDomains: ['bh.gornog.com'],
-    checkOrigin: true,
+    checkOrigin: false,
   },
   output: 'server',
   adapter: node({
