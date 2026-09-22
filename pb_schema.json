@@ -105,6 +105,7 @@
     "deleteRule": "",
     "fields": [
       { "id": "relation_item_performance", "name": "team_performance", "type": "relation", "collectionId": "pbc_343523064", "maxSelect": 1, "required": true },
+      { "id": "relation_item_auctioneer", "name": "auctioneer", "type": "relation", "collectionId": "pbc_314608590", "maxSelect": 1, "required": false },
       { "id": "number_item_slot", "name": "slot", "type": "number", "required": true },
       { "id": "text_item_name", "name": "name", "type": "text", "required": false },
       { "id": "number_item_buy", "name": "buy_price", "type": "number", "required": false },

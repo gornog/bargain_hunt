@@ -20,7 +20,7 @@ const redExpertGoldenGavel = isExpertGoldenGavel(selectedEpisode?.teams?.find((t
 const blueExpertGoldenGavel = isExpertGoldenGavel(selectedEpisode?.teams?.find((team: any) => team.team_color === 'Blue'));
 const houseOptions = auctionHouses.map((house) => ({ label: house.name }));
 const expertHouseField = experts.some((person: any) => Object.prototype.hasOwnProperty.call(person, 'auction_house')) ? 'auction_house' : 'auction_houses';
-const auctioneerOptions = experts.map((person: any) => ({ label: person.name, houseIds: auctionHouseIds(person), houseName: auctionHouseNames(person) }));
+const auctioneerOptions = experts.filter((person: any) => person.is_auctioneer).map((person: any) => ({ label: person.name, houseIds: auctionHouseIds(person), houseName: auctionHouseNames(person) }));
 const selectedHouseId = selectedEpisode?.auction_house || '';
 const selectedAuctioneerIds = Array.isArray(selectedEpisode?.auctioneers) ? selectedEpisode.auctioneers : selectedEpisode?.expand?.auctioneers?.map((person: any) => person.id) || [];
 const selectedAuctioneerNames = selectedAuctioneerIds.map((id: string) => experts.find((person: any) => person.id === id)?.name || '').filter(Boolean);
@@ -109,7 +109,9 @@ if (Astro.request.method === 'POST') {
         const hasContent = Boolean(name || buyPrice || sellPrice || estimate || challenge || bigSpend || disqualified || accepted);
         const item = existingItems.find((entry) => Number(entry.slot) === slot);
         if (!hasContent && !item) continue;
-        const itemData = { team_performance: savedPerformance.id, slot, name, buy_price: buyPrice, sell_price: sellPrice, auctioneer_estimate: estimate, is_challenge: challenge, is_big_spend: bigSpend, disqualified, challenge_result: challenge ? String(form.get(`${color}_item_${slot}_challenge_result`) || 'passed') : 'not_applicable' };
+        const itemAuctioneerName = String(form.get(`${color}_item_${slot}_auctioneer`) || '').trim();
+        const itemAuctioneer = itemAuctioneerName ? await findOrCreateExpert(itemAuctioneerName, 'auctioneer', house?.id || '') : null;
+        const itemData = { team_performance: savedPerformance.id, auctioneer: itemAuctioneer?.id || (auctioneerIds.length === 1 ? auctioneerIds[0] : ''), slot, name, buy_price: buyPrice, sell_price: sellPrice, auctioneer_estimate: estimate, is_challenge: challenge, is_big_spend: bigSpend, disqualified, challenge_result: challenge ? String(form.get(`${color}_item_${slot}_challenge_result`) || 'passed') : 'not_applicable' };
         try {
           if (item) await pb.collection('items').update(item.id, itemData);
           else await pb.collection('items').create(itemData);
