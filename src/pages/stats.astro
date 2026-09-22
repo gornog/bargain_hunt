@@ -71,10 +71,14 @@ const profitBins = [
   { label: '£150 to £199', min: 150, max: 199.99 },
   { label: '£200 to £249', min: 200, max: 249.99 },
   { label: '£250+', min: 250, max: Infinity }
-].map((bin) => ({ ...bin, count: teams.filter((team: any) => team.profit >= bin.min && team.profit <= bin.max).length }));
+].map((bin) => {
+  const rows = teams.filter((team: any) => team.profit >= bin.min && team.profit <= bin.max);
+  return { ...bin, red: rows.filter((team: any) => team.team_color === 'Red').length, blue: rows.filter((team: any) => team.team_color === 'Blue').length };
+});
 const episodeSeries = details.filter((episode) => episode.isLogged).map((episode) => ({
   label: `S${episode.series || '?'} E${episode.episod_number || '?'}`,
-  profit: episode.scored.reduce((sum: number, team: any) => sum + team.profit, 0)
+  red: episode.scored.filter((team: any) => team.team_color === 'Red').reduce((sum: number, team: any) => sum + team.profit, 0),
+  blue: episode.scored.filter((team: any) => team.team_color === 'Blue').reduce((sum: number, team: any) => sum + team.profit, 0)
 })).reverse();
 ---
 <Layout>
@@ -84,7 +88,7 @@ const episodeSeries = details.filter((episode) => episode.isLogged).map((episode
       <div class="page-intro"><p class="eyebrow">the score board</p><h1>Who made the <i>profit?</i></h1><p>Compare the Reds and Blues, check the best buys and see which experts have the eye for it.</p></div>
       {errorMessage && <div class="notice error">{errorMessage}</div>}
       <section class="stats-grid stats-grid-three" aria-label="Summary statistics"><div class="stat"><span>Logged episodes</span><strong>{logged.length}</strong><small>of {details.length} catalogue records</small></div><div class="stat"><span>Red team record</span><strong>{wins('Red')} wins</strong><small>{money.format(redTotal)} net · {red.length} teams</small></div><div class="stat"><span>Blue team record</span><strong>{wins('Blue')} wins</strong><small>{money.format(blueTotal)} net · {blue.length} teams</small></div></section>
-      <section class="chart-block" aria-labelledby="team-chart-title"><h2 id="team-chart-title">Team performance</h2><p class="chart-note">Net recorded result. The centre line is £0; bars extending left are losses.</p><div class="chart-row"><span>Red</span><div class="chart-track diverging-track" aria-label={`Red: ${money.format(redTotal)}`}><b aria-hidden="true"></b><i class:list={[redTotal < 0 && 'negative']} style={divergingBar(redTotal, chartMax)}></i></div><strong>{money.format(redTotal)}</strong></div><div class="chart-row blue"><span>Blue</span><div class="chart-track diverging-track" aria-label={`Blue: ${money.format(blueTotal)}`}><b aria-hidden="true"></b><i class:list={[blueTotal < 0 && 'negative']} style={divergingBar(blueTotal, chartMax)}></i></div><strong>{money.format(blueTotal)}</strong></div></section>
+      <section class="chart-block" aria-labelledby="team-chart-title"><h2 id="team-chart-title">Team performance</h2><p class="chart-note">Net recorded result. Red and blue always identify the team; the centre line is £0.</p><div class="chart-row red"><span>Red</span><div class="chart-track diverging-track" aria-label={`Red: ${money.format(redTotal)}`}><b aria-hidden="true"></b><i style={divergingBar(redTotal, chartMax)}></i></div><strong>{money.format(redTotal)}</strong></div><div class="chart-row blue"><span>Blue</span><div class="chart-track diverging-track" aria-label={`Blue: ${money.format(blueTotal)}`}><b aria-hidden="true"></b><i style={divergingBar(blueTotal, chartMax)}></i></div><strong>{money.format(blueTotal)}</strong></div></section>
       <section class="stats-figures" aria-label="Detailed statistical visualisations">
         <figure class="stat-figure"><figcaption><span class="eyebrow">distribution</span><h2>Team profit histogram</h2><p>How often a recorded team lands in each profit band.</p></figcaption><div class="stats-chart-slot"><StatsCharts mode="histogram" bins={profitBins} /></div></figure>
         <figure class="stat-figure"><figcaption><span class="eyebrow">sequence</span><h2>Net result by episode</h2><p>Combined Red and Blue result for every logged episode.</p></figcaption><div class="stats-chart-slot"><StatsCharts mode="episode" episodes={episodeSeries} /></div></figure>

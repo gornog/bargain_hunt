@@ -321,8 +321,9 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 
 .diverging-track,.diverging-bar { position:relative; overflow:visible; }
 .diverging-track b,.diverging-bar b { position:absolute; z-index:1; top:-3px; bottom:-3px; left:50%; border-left:1px solid rgba(244,241,232,.72); }
-.diverging-track i,.diverging-bar i { position:absolute; z-index:2; top:0; bottom:0; min-width:0; background:var(--blue); }
-.diverging-track i.negative,.diverging-bar i.negative { background:var(--red); }
+.diverging-track i,.diverging-bar i { position:absolute; z-index:2; top:0; bottom:0; min-width:0; background:var(--gold); }
+.chart-row.red .diverging-track i { background:var(--red); }
+.chart-row.blue .diverging-track i { background:var(--blue); }
 .diverging-bar { background:#303b4c; }
 .episode-auction-details > label { grid-column:span 1; }
 .auctioneer-entry { grid-column:span 2; min-width:0; }
