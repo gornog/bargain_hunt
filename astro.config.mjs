@@ -9,6 +9,10 @@ export default defineConfig({
       allowedHosts: ['bh.gornog.com']
     }
   },
+  security: {
+    allowedDomains: ['bh.gornog.com'],
+    checkOrigin: true,
+  },
   output: 'server',
   adapter: node({
     mode: 'standalone'

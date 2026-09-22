@@ -9,40 +9,23 @@ const payload = JSON.stringify({ bins, episodes, mode }).replace(/</g, '\\u003c'
 <script is:inline src="/vendor/chart.umd.js"></script>
 <script>
   const Chart = (window as any).Chart;
-  const money = new Intl.NumberFormat('en-GB', { style:'currency', currency:'GBP', maximumFractionDigits:0 });
+  const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
   const stackedAnimation = () => {
     let delayed = false;
     return {
-      duration: 900,
-      easing: 'easeOutQuart' as const,
-      onComplete: () => { delayed = true; },
-      delay: (context:any) => context.type === 'data' && context.mode === 'default' && !delayed
-        ? context.dataIndex * 300 + context.datasetIndex * 100
-        : 0
+      animation: { duration: 900, easing: 'easeOutQuart' as const, onComplete: () => { delayed = true; }, delay: (context: any) => context.type === 'data' && context.mode === 'default' && !delayed ? context.dataIndex * 300 + context.datasetIndex * 100 : 0 },
+      animations: { y: { from: 0, duration: 900, easing: 'easeOutQuart' as const } },
     };
   };
-  const gradient = (canvas: HTMLCanvasElement, colour: string) => {
-    const context = canvas.getContext('2d');
-    if (!context) return colour;
-    const fill = context.createLinearGradient(0, 0, 0, canvas.height || 300);
-    fill.addColorStop(0, `${colour}f2`);
-    fill.addColorStop(1, `${colour}70`);
-    return fill;
-  };
+  const gradient = (canvas: HTMLCanvasElement, colour: string) => { const context = canvas.getContext('2d'); if (!context) return colour; const fill = context.createLinearGradient(0, 0, 0, canvas.height || 300); fill.addColorStop(0, `${colour}f2`); fill.addColorStop(1, `${colour}70`); return fill; };
+  const shared = (canvas: HTMLCanvasElement, labels: string[], datasets: any[], y: any) => new Chart(canvas, { type: 'bar', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, ...stackedAnimation(), interaction: { intersect: false, mode: 'index' }, plugins: { legend: { display: true, labels: { color: '#d8dee7' } }, tooltip: { displayColors: true, backgroundColor: '#fffdf5', titleColor: '#111722', bodyColor: '#354055', borderColor: '#d1b24d', borderWidth: 1, padding: 10, callbacks: { title: (items: any[]) => items[0]?.label || '', label: (context: any) => context.dataset.tooltipLabel(context) } } }, scales: { x: { stacked: true, ticks: { color: '#c9d0d9', maxRotation: 60, autoSkip: true, font: { weight: '600' } }, grid: { display: false }, border: { color: 'rgba(244,241,232,.25)' } }, y } } });
   const init = () => document.querySelectorAll<HTMLElement>('[data-stats-charts]').forEach((root) => {
-    if (root.dataset.ready) return;
-    const canvases = root.querySelectorAll('canvas');
-    if (!Chart || !canvases.length) return;
-    const data = JSON.parse(root.dataset.statsCharts || '{}'); root.dataset.ready = 'true';
-    let index = 0;
-    if (data.mode !== 'episode') {
-      const canvas = canvases[index++] as HTMLCanvasElement;
-      new Chart(canvas, { type:'bar', data:{ labels:data.bins.map((b:any)=>b.label), datasets:[{ label:'Red team', data:data.bins.map((b:any)=>b.red), backgroundColor:gradient(canvas, '#ed2638'), borderColor:'#ed2638', borderWidth:1, borderRadius:0, borderSkipped:false, maxBarThickness:56 },{ label:'Blue team', data:data.bins.map((b:any)=>b.blue), backgroundColor:gradient(canvas, '#2587d6'), borderColor:'#2587d6', borderWidth:1, borderRadius:0, borderSkipped:false, maxBarThickness:56 }] }, options:{ responsive:true, maintainAspectRatio:false, animation:stackedAnimation(), interaction:{intersect:false,mode:'index'}, plugins:{ legend:{display:true, labels:{color:'#d8dee7'}}, tooltip:{ displayColors:true, backgroundColor:'#fffdf5', titleColor:'#111722', bodyColor:'#354055', borderColor:'#d1b24b', borderWidth:1, padding:10, callbacks:{ title:(items:any[])=>items[0]?.label || '', label:(context:any)=>`${context.dataset.label}: ${context.raw} episode${context.raw === 1 ? '' : 's'}` } } }, scales:{ x:{stacked:true,ticks:{color:'#c9d0d9',font:{weight:'600'}},grid:{display:false},border:{color:'rgba(244,241,232,.25)'}}, y:{stacked:true,beginAtZero:true,ticks:{precision:0,color:'#c9d0d9',stepSize:1},grid:{color:'rgba(244,241,232,.11)'},border:{display:false}} } } });
-    }
-    if (data.mode !== 'histogram') {
-      const canvas = canvases[index] as HTMLCanvasElement;
-      new Chart(canvas, { type:'bar', data:{ labels:data.episodes.map((e:any)=>e.label), datasets:[{ label:'Red team', data:data.episodes.map((e:any)=>e.red), backgroundColor:gradient(canvas, '#ed2638'), borderColor:'#ed2638', borderWidth:1, borderRadius:0, borderSkipped:false, maxBarThickness:38 },{ label:'Blue team', data:data.episodes.map((e:any)=>e.blue), backgroundColor:gradient(canvas, '#2587d6'), borderColor:'#2587d6', borderWidth:1, borderRadius:0, borderSkipped:false, maxBarThickness:38 }] }, options:{ responsive:true, maintainAspectRatio:false, animation:stackedAnimation(), interaction:{intersect:false,mode:'index'}, plugins:{ legend:{display:true, labels:{color:'#d8dee7'}}, tooltip:{ displayColors:true, backgroundColor:'#fffdf5', titleColor:'#111722', bodyColor:'#354055', borderColor:'#d1b24b', borderWidth:1, padding:10, callbacks:{ title:(items:any[])=>items[0]?.label || '', label:(context:any)=>`${context.dataset.label}: ${money.format(Number(context.raw))}` } } }, scales:{ x:{stacked:true,ticks:{color:'#c9d0d9',maxRotation:60,autoSkip:true,font:{weight:'600'}},grid:{display:false},border:{color:'rgba(244,241,232,.25)'}}, y:{stacked:true,ticks:{color:'#c9d0d9',callback:(value:any)=>money.format(value),stepSize:10},grid:{color:(context:any)=>context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.11)',lineWidth:(context:any)=>context.tick.value === 0 ? 1.4 : 1},border:{display:false}} } } });
-    }
+    if (root.dataset.ready || !Chart) return;
+    const canvases = root.querySelectorAll<HTMLCanvasElement>('canvas'); if (!canvases.length) return;
+    const data = JSON.parse(root.dataset.statsCharts || '{}'); root.dataset.ready = 'true'; let index = 0;
+    const teamDataset = (label: string, colour: string, values: number[], tooltipLabel: (context: any) => string, maxBarThickness: number, canvas: HTMLCanvasElement) => ({ label, data: values, backgroundColor: gradient(canvas, colour), borderColor: colour, borderWidth: 1, borderRadius: 0, borderSkipped: false, maxBarThickness, tooltipLabel });
+    if (data.mode !== 'episode') { const canvas = canvases[index++]; const datasets = [teamDataset('Red team', '#ed2638', data.bins.map((bin: any) => bin.red), (context) => `Red team: ${context.raw} episode${context.raw === 1 ? '' : 's'}`, 56, canvas), teamDataset('Blue team', '#2587d6', data.bins.map((bin: any) => bin.blue), (context) => `Blue team: ${context.raw} episode${context.raw === 1 ? '' : 's'}`, 56, canvas)]; shared(canvas, data.bins.map((bin: any) => bin.label), datasets, { stacked: true, beginAtZero: true, ticks: { precision: 0, color: '#c9d0d9', stepSize: 1 }, grid: { color: 'rgba(244,241,232,.11)' }, border: { display: false } }); }
+    if (data.mode !== 'histogram') { const canvas = canvases[index]; const datasets = [teamDataset('Red team', '#ed2638', data.episodes.map((episode: any) => episode.red), (context) => `Red team: ${money.format(Number(context.raw))}`, 38, canvas), teamDataset('Blue team', '#2587d6', data.episodes.map((episode: any) => episode.blue), (context) => `Blue team: ${money.format(Number(context.raw))}`, 38, canvas)]; shared(canvas, data.episodes.map((episode: any) => episode.label), datasets, { stacked: true, ticks: { color: '#c9d0d9', callback: (value: any) => money.format(value), stepSize: 10 }, grid: { color: (context: any) => context.tick.value === 0 ? 'rgba(255,208,74,.75)' : 'rgba(244,241,232,.11)', lineWidth: (context: any) => context.tick.value === 0 ? 1.4 : 1 }, border: { display: false } }); }
   });
   requestAnimationFrame(init);
 </script>
