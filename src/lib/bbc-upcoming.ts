@@ -1,4 +1,5 @@
 import { getPocketBase } from './archive';
+import { fetchBbcImage, imageFromUpcomingCard } from './bbc-images';
 
 const BBC_UPCOMING_URL = 'https://www.bbc.co.uk/programmes/b006nb9z/broadcasts/upcoming';
 const REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -39,15 +40,6 @@ const safeBbcUrl = (value: string) => {
   try {
     const url = new URL(value, 'https://www.bbc.co.uk');
     return url.protocol === 'https:' && (url.hostname === 'bbc.co.uk' || url.hostname.endsWith('.bbc.co.uk')) ? url.href : '';
-  } catch {
-    return '';
-  }
-};
-
-const safeImageUrl = (value: string) => {
-  try {
-    const url = new URL(value, 'https://www.bbc.co.uk');
-    return url.protocol === 'https:' && (url.hostname === 'ichef.bbci.co.uk' || url.hostname.endsWith('.bbci.co.uk')) ? url.href : '';
   } catch {
     return '';
   }
@@ -96,16 +88,6 @@ const cardsFromPage = (html: string) => {
   return [...html.matchAll(/<a\b[^>]*href=["'](?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/[a-z0-9]+["'][^>]*>[\s\S]*?<\/a>/gi)].map((match) => html.slice(Math.max(0, (match.index ?? 0) - 2200), Math.min(html.length, (match.index ?? 0) + 3500)));
 };
 
-const imageFromCard = (card: string) => {
-  const box = card.match(/<div\b[^>]*class=["'][^"']*programme__img-box[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || card;
-  const srcset = box.match(/\bdata-srcset=["']([^"']+)["']/i)?.[1] || '';
-  const candidates = [...srcset.matchAll(/(https?:\/\/[^\s,]+|\/[^\s,]+)\s+(\d+)w/gi)]
-    .map((match) => ({ url: safeImageUrl(match[1]), width: Number(match[2]) }))
-    .filter((candidate) => candidate.url)
-    .sort((a, b) => b.width - a.width);
-  return candidates[0]?.url || safeImageUrl(box.match(/\bdata-src=["']([^"']+)["']/i)?.[1] || box.match(/\bsrc=["']([^"']+)["']/i)?.[1] || '');
-};
-
 const parseUpcoming = (html: string): UpcomingEpisode[] => {
   const seen = new Set<string>();
   return cardsFromPage(html).flatMap((card) => {
@@ -121,7 +103,7 @@ const parseUpcoming = (html: string): UpcomingEpisode[] => {
     const synopsisMarkup = card.match(/<p\b[^>]*class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1] || card.match(/class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|span|div)>/i)?.[1] || '';
     const synopsis = clean(synopsisMarkup).replace(/\s*\(R\)\s*$/i, '').trim();
     const broadcastDate = dateForCard(card, text);
-    const image = imageFromCard(card);
+    const image = imageFromUpcomingCard(card);
     if (!pid || !url || !title || !series || seen.has(pid)) return [];
     seen.add(pid);
     return [{ pid, url, series, episode, title, synopsis, image, broadcastDate, isToday: /\btoday\b/i.test(text), isTomorrow: /\btomorrow\b/i.test(text) }];
@@ -140,29 +122,6 @@ const fetchUpcoming = async () => {
   }
   return [...earliestByPid.values()].sort((a, b) => (Date.parse(a.broadcastDate) || Number.MAX_SAFE_INTEGER) - (Date.parse(b.broadcastDate) || Number.MAX_SAFE_INTEGER));
 };
-
-const fetchImage = async (url: string) => {
-  const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0', Accept: 'image/avif,image/webp,image/jpeg,image/png' } });
-  if (!response.ok) throw new Error(`BBC image returned ${response.status}.`);
-  const type = response.headers.get('content-type') || 'image/jpeg';
-  if (!type.startsWith('image/')) throw new Error(`BBC image returned ${type}.`);
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > 8 * 1024 * 1024) throw new Error('BBC image is larger than 8 MB.');
-  return new File([bytes], 'episode-image.jpg', { type });
-};
-
-export async function refreshEpisodeImage(episodeId: string) {
-  const pb = await getPocketBase();
-  const record = await pb.collection('episodes').getOne(episodeId, { requestKey: null });
-  if (!record.bbc_url) throw new Error('This episode has no BBC programme URL.');
-  const response = await fetch(record.bbc_url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0', Accept: 'text/html,application/xhtml+xml' } });
-  if (!response.ok) throw new Error(`BBC programme page returned ${response.status}.`);
-  const imageUrl = imageFromCard(await response.text());
-  if (!imageUrl) throw new Error('No BBC episode image was found.');
-  const image = await fetchImage(imageUrl);
-  const saved = await pb.collection('episodes').update(record.id, { image });
-  return { id: saved.id, filename: saved.image };
-}
 
 const runRefresh = async (): Promise<UpcomingRefresh> => {
   const [pb, upcoming] = await Promise.all([getPocketBase(), fetchUpcoming()]);
@@ -201,7 +160,7 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
     }
     if (episode.image) {
       try {
-        const image = await fetchImage(episode.image);
+        const image = await fetchBbcImage(episode.image);
         await pb.collection('episodes').update(saved.id, { image });
         images += 1;
       } catch (error) {

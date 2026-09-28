@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { refreshEpisodeImage } from '../../lib/bbc-upcoming';
+import { refreshEpisodeImage } from '../../lib/bbc-episode-image';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
