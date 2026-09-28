@@ -376,6 +376,9 @@ label input { color:#fff; border-color:rgba(244,241,232,.35); }
 .team-card .bonus-details .bonus-check { margin-left:0; margin-top:0; }
 .episode-media { display:grid; grid-template-columns:180px minmax(0,1fr); gap:20px; align-items:start; margin-top:18px; }
 .episode-image-stack { grid-column:1; min-width:0; }
+.image-refresh-button { display:block; margin-top:8px; padding:7px 10px; background:transparent; color:var(--blue); border:1px solid var(--blue); font-size:11px; }
+.image-refresh-button:hover { background:var(--blue); color:#fff; }
+#image-refresh-status { display:block; margin-top:6px; color:var(--muted); font-size:11px; }
 .episode-media .log-preview { width:180px; margin:0; grid-column:1; }
 .episode-media .log-synopsis { margin:0; grid-column:2; color:#d2d8df; }
 .log-watch-link { display:block; width:max-content; max-width:100%; margin-top:10px; }

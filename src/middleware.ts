@@ -6,7 +6,7 @@ const unauthorized = () => new Response('Editor sign-in required.', {
 });
 
 export const onRequest: MiddlewareHandler = async (context, next) => {
-  const protectedPath = context.url.pathname.startsWith('/log') || context.url.pathname === '/api/bbc-refresh';
+  const protectedPath = context.url.pathname.startsWith('/log') || context.url.pathname === '/api/bbc-refresh' || context.url.pathname === '/api/episode-image';
   if (!protectedPath) return next();
 
   const password = import.meta.env.SITE_EDITOR_PASSWORD;

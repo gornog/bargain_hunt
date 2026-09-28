@@ -10,6 +10,7 @@ type UpcomingEpisode = {
   episode: number;
   title: string;
   synopsis: string;
+  image: string;
   broadcastDate: string;
   isToday: boolean;
   isTomorrow: boolean;
@@ -19,6 +20,7 @@ type UpcomingEpisode = {
 export type UpcomingRefresh = {
   created: number;
   updated: number;
+  images: number;
   today: UpcomingEpisode | null;
   todayRecordId: string | null;
   tomorrow: UpcomingEpisode | null;
@@ -37,6 +39,15 @@ const safeBbcUrl = (value: string) => {
   try {
     const url = new URL(value, 'https://www.bbc.co.uk');
     return url.protocol === 'https:' && (url.hostname === 'bbc.co.uk' || url.hostname.endsWith('.bbc.co.uk')) ? url.href : '';
+  } catch {
+    return '';
+  }
+};
+
+const safeImageUrl = (value: string) => {
+  try {
+    const url = new URL(value, 'https://www.bbc.co.uk');
+    return url.protocol === 'https:' && (url.hostname === 'ichef.bbci.co.uk' || url.hostname.endsWith('.bbci.co.uk')) ? url.href : '';
   } catch {
     return '';
   }
@@ -85,6 +96,16 @@ const cardsFromPage = (html: string) => {
   return [...html.matchAll(/<a\b[^>]*href=["'](?:https?:\/\/www\.bbc\.co\.uk)?\/programmes\/[a-z0-9]+["'][^>]*>[\s\S]*?<\/a>/gi)].map((match) => html.slice(Math.max(0, (match.index ?? 0) - 2200), Math.min(html.length, (match.index ?? 0) + 3500)));
 };
 
+const imageFromCard = (card: string) => {
+  const box = card.match(/<div\b[^>]*class=["'][^"']*programme__img-box[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] || card;
+  const srcset = box.match(/\bdata-srcset=["']([^"']+)["']/i)?.[1] || '';
+  const candidates = [...srcset.matchAll(/(https?:\/\/[^\s,]+|\/[^\s,]+)\s+(\d+)w/gi)]
+    .map((match) => ({ url: safeImageUrl(match[1]), width: Number(match[2]) }))
+    .filter((candidate) => candidate.url)
+    .sort((a, b) => b.width - a.width);
+  return candidates[0]?.url || safeImageUrl(box.match(/\bdata-src=["']([^"']+)["']/i)?.[1] || box.match(/\bsrc=["']([^"']+)["']/i)?.[1] || '');
+};
+
 const parseUpcoming = (html: string): UpcomingEpisode[] => {
   const seen = new Set<string>();
   return cardsFromPage(html).flatMap((card) => {
@@ -100,9 +121,10 @@ const parseUpcoming = (html: string): UpcomingEpisode[] => {
     const synopsisMarkup = card.match(/<p\b[^>]*class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1] || card.match(/class=["'][^"']*programme__synopsis[^"']*["'][^>]*>([\s\S]*?)<\/(?:p|span|div)>/i)?.[1] || '';
     const synopsis = clean(synopsisMarkup).replace(/\s*\(R\)\s*$/i, '').trim();
     const broadcastDate = dateForCard(card, text);
+    const image = imageFromCard(card);
     if (!pid || !url || !title || !series || seen.has(pid)) return [];
     seen.add(pid);
-    return [{ pid, url, series, episode, title, synopsis, broadcastDate, isToday: /\btoday\b/i.test(text), isTomorrow: /\btomorrow\b/i.test(text) }];
+    return [{ pid, url, series, episode, title, synopsis, image, broadcastDate, isToday: /\btoday\b/i.test(text), isTomorrow: /\btomorrow\b/i.test(text) }];
   });
 };
 
@@ -119,13 +141,37 @@ const fetchUpcoming = async () => {
   return [...earliestByPid.values()].sort((a, b) => (Date.parse(a.broadcastDate) || Number.MAX_SAFE_INTEGER) - (Date.parse(b.broadcastDate) || Number.MAX_SAFE_INTEGER));
 };
 
+const fetchImage = async (url: string) => {
+  const response = await fetch(url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0', Accept: 'image/avif,image/webp,image/jpeg,image/png' } });
+  if (!response.ok) throw new Error(`BBC image returned ${response.status}.`);
+  const type = response.headers.get('content-type') || 'image/jpeg';
+  if (!type.startsWith('image/')) throw new Error(`BBC image returned ${type}.`);
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > 8 * 1024 * 1024) throw new Error('BBC image is larger than 8 MB.');
+  return new File([bytes], 'episode-image.jpg', { type });
+};
+
+export async function refreshEpisodeImage(episodeId: string) {
+  const pb = await getPocketBase();
+  const record = await pb.collection('episodes').getOne(episodeId, { requestKey: null });
+  if (!record.bbc_url) throw new Error('This episode has no BBC programme URL.');
+  const response = await fetch(record.bbc_url, { headers: { 'User-Agent': 'BargainHuntFieldNotes/1.0', Accept: 'text/html,application/xhtml+xml' } });
+  if (!response.ok) throw new Error(`BBC programme page returned ${response.status}.`);
+  const imageUrl = imageFromCard(await response.text());
+  if (!imageUrl) throw new Error('No BBC episode image was found.');
+  const image = await fetchImage(imageUrl);
+  const saved = await pb.collection('episodes').update(record.id, { image });
+  return { id: saved.id, filename: saved.image };
+}
+
 const runRefresh = async (): Promise<UpcomingRefresh> => {
   const [pb, upcoming] = await Promise.all([getPocketBase(), fetchUpcoming()]);
   const existing = await pb.collection('episodes').getFullList({ requestKey: null });
   const byPid = new Map(existing.filter((episode: any) => episode.bbc_pid).map((episode: any) => [episode.bbc_pid, episode]));
-  const byCoordinate = new Map(existing.filter((episode: any) => Number(episode.episod_number) > 0).map((episode: any) => [`${episode.series}|${episode.episod_number}`, episode]));
+  const byCoordinate = new Map(existing.filter((episode: any) => !episode.bbc_pid && Number(episode.episod_number) > 0).map((episode: any) => [`${episode.series}|${episode.episod_number}`, episode]));
   let created = 0;
   let updated = 0;
+  let images = 0;
   let todayRecordId: string | null = null;
   let tomorrowRecordId: string | null = null;
   const upcomingWithRecords: UpcomingEpisode[] = [];
@@ -134,12 +180,13 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
     const record = byPid.get(episode.pid) || (episode.episode > 0 ? byCoordinate.get(`${episode.series}|${episode.episode}`) : undefined);
     const payload: Record<string, string | number> = { bbc_pid: episode.pid, bbc_url: episode.url };
     if (episode.broadcastDate) payload.broadcast_date = episode.broadcastDate;
+    if (!record || !String(record.title || '').trim()) payload.title = episode.title;
+    if (episode.synopsis && (!record || !String(record.synopsis || '').trim())) payload.synopsis = episode.synopsis;
+    let saved;
     if (!record) {
       payload.series = episode.series;
       payload.episod_number = episode.episode;
-      payload.title = episode.title;
-      if (episode.synopsis) payload.synopsis = episode.synopsis;
-      const saved = await pb.collection('episodes').create(payload);
+      saved = await pb.collection('episodes').create(payload);
       byPid.set(episode.pid, saved);
       if (episode.episode > 0) byCoordinate.set(`${episode.series}|${episode.episode}`, saved);
       created += 1;
@@ -147,16 +194,25 @@ const runRefresh = async (): Promise<UpcomingRefresh> => {
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
     } else {
       const changed = Object.entries(payload).some(([key, value]) => String(record[key] ?? '') !== String(value));
-      const saved = changed ? await pb.collection('episodes').update(record.id, payload) : record;
+      saved = changed ? await pb.collection('episodes').update(record.id, payload) : record;
       if (changed) updated += 1;
       if (episode.isToday) todayRecordId = saved.id;
       if (episode.isTomorrow) tomorrowRecordId = saved.id;
     }
-    const savedRecord = record || (episode.episode > 0 ? byCoordinate.get(`${episode.series}|${episode.episode}`) : undefined);
+    if (episode.image) {
+      try {
+        const image = await fetchImage(episode.image);
+        await pb.collection('episodes').update(saved.id, { image });
+        images += 1;
+      } catch (error) {
+        console.warn(`Could not save image for ${episode.pid}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    const savedRecord = saved || record || (episode.episode > 0 ? byCoordinate.get(`${episode.series}|${episode.episode}`) : undefined);
     if (savedRecord) upcomingWithRecords.push({ ...episode, recordId: savedRecord.id });
   }
 
-  return { created, updated, today: upcoming.find((episode) => episode.isToday) || null, todayRecordId, tomorrow: upcoming.find((episode) => episode.isTomorrow) || null, tomorrowRecordId, upcoming: upcomingWithRecords, outcome: created || updated ? 'updated' : 'no_changes', checkedAt: new Date().toISOString() };
+  return { created, updated, images, today: upcoming.find((episode) => episode.isToday) || null, todayRecordId, tomorrow: upcoming.find((episode) => episode.isTomorrow) || null, tomorrowRecordId, upcoming: upcomingWithRecords, outcome: created || updated || images ? 'updated' : 'no_changes', checkedAt: new Date().toISOString() };
 };
 
 export async function refreshUpcomingEpisodes(force = false) {
