@@ -5,8 +5,11 @@ const unauthorized = () => new Response('Editor sign-in required.', {
   headers: { 'WWW-Authenticate': 'Basic realm="Bargain Hunt editor", charset="UTF-8"' },
 });
 
+const matchesRoute = (pathname: string, route: string) => pathname === route || pathname.startsWith(`${route}/`);
+
 export const onRequest: MiddlewareHandler = async (context, next) => {
-  const protectedPath = context.url.pathname.startsWith('/log') || context.url.pathname === '/api/bbc-refresh' || context.url.pathname === '/api/episode-image' || context.url.pathname === '/api/episode-synopsis';
+  const pathname = context.url.pathname;
+  const protectedPath = pathname.startsWith('/log') || matchesRoute(pathname, '/api/bbc-refresh') || matchesRoute(pathname, '/api/episode-image') || matchesRoute(pathname, '/api/episode-synopsis');
   if (!protectedPath) return next();
 
   const password = import.meta.env.SITE_EDITOR_PASSWORD;
