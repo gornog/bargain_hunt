@@ -18,7 +18,15 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
 ---
 <div class="chartjs-scatter" id={chartId} data-points={chartData}>
   <canvas aria-label={`Scatter plot of ${points.length} recorded lots`} role="img"></canvas>
-  <div class="chartjs-tooltip" role="status" aria-live="polite"></div>
+  <div class="chartjs-tooltip" role="status" aria-live="polite">
+    <span class="tooltip-kicker"></span>
+    <strong></strong>
+    <span class="tooltip-episode"></span>
+    <dl>
+      <div><dt>Profit</dt><dd data-tooltip-profit></dd></div>
+      <div><dt>Vs estimate</dt><dd data-tooltip-estimate></dd></div>
+    </dl>
+  </div>
   <p class="chart-fallback">Interactive chart loading…</p>
 </div>
 
@@ -36,8 +44,13 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
     if (container.dataset.ready) return;
     const canvas = container.querySelector('canvas');
     const tooltip = container.querySelector<HTMLElement>('.chartjs-tooltip');
+    const tooltipKicker = tooltip?.querySelector<HTMLElement>('.tooltip-kicker');
+    const tooltipName = tooltip?.querySelector<HTMLElement>('strong');
+    const tooltipEpisode = tooltip?.querySelector<HTMLElement>('.tooltip-episode');
+    const tooltipProfit = tooltip?.querySelector<HTMLElement>('[data-tooltip-profit]');
+    const tooltipEstimate = tooltip?.querySelector<HTMLElement>('[data-tooltip-estimate]');
     const fallback = container.querySelector<HTMLElement>('.chart-fallback');
-    if (!canvas || !tooltip || !Chart) return;
+    if (!canvas || !tooltip || !tooltipKicker || !tooltipName || !tooltipEpisode || !tooltipProfit || !tooltipEstimate || !Chart) return;
     const points = JSON.parse(container.dataset.points || '[]');
     container.dataset.ready = 'true';
 
@@ -47,7 +60,11 @@ const chartId = `item-scatter-${Math.random().toString(36).slice(2, 9)}`;
       const point = model.dataPoints?.[0]?.raw;
       if (!point) return;
       const state = point.disqualified || point.challengeFailed ? 'Disqualified / failed challenge' : point.isBonus && !point.bonusAccepted ? 'Bonus declined' : point.isExpertItem ? 'Expert item' : `${point.teamColor || 'Recorded'} team item`;
-      tooltip.innerHTML = `<span class="tooltip-kicker">${state}</span><strong>${point.name}</strong><span class="tooltip-episode">${point.episodeLabel}</span><dl><div><dt>Profit</dt><dd>${formatMoney(point.x)}</dd></div><div><dt>Vs estimate</dt><dd>${formatMoney(point.y)}</dd></div></dl>`;
+      tooltipKicker.textContent = state;
+      tooltipName.textContent = point.name;
+      tooltipEpisode.textContent = point.episodeLabel;
+      tooltipProfit.textContent = formatMoney(point.x);
+      tooltipEstimate.textContent = formatMoney(point.y);
       const rect = canvas.getBoundingClientRect();
       const parent = container.getBoundingClientRect();
       const left = Math.min(Math.max(model.caretX + rect.left - parent.left + 12, 8), parent.width - tooltip.offsetWidth - 8);
